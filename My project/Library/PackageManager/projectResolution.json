@@ -1,0 +1,511 @@
+{
+  "context": {
+    "projectPath": "D:/MobileUI/My project/Packages",
+    "unityVersion": "6000.0.25f1"
+  },
+  "inputs": [
+    "D:\\MobileUI\\My project\\Packages\\manifest.json",
+    "D:\\MobileUI\\My project\\Packages\\packages-lock.json"
+  ],
+  "outputs": {
+    "com.unity.collab-proxy@2.11.3": {
+      "name": "com.unity.collab-proxy",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.collab-proxy",
+      "fingerprint": "e566cd3e762373591f6828e86f2018eed8021356",
+      "editorCompatibility": "2021.3.0f1",
+      "version": "2.11.3",
+      "source": "registry"
+    },
+    "com.unity.feature.development@1.0.2": {
+      "name": "com.unity.feature.development",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.feature.development",
+      "fingerprint": "c770b6a36a30949b030c5ec02d835f771b975cbb",
+      "version": "1.0.2",
+      "source": "builtin"
+    },
+    "com.unity.inputsystem@1.15.0": {
+      "name": "com.unity.inputsystem",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.inputsystem",
+      "fingerprint": "85cf3259697cccae3fcad0fbeb83999f03182c32",
+      "editorCompatibility": "2021.3.0a1",
+      "version": "1.15.0",
+      "source": "registry"
+    },
+    "com.unity.learn.iet-framework@4.0.4": {
+      "name": "com.unity.learn.iet-framework",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.learn.iet-framework",
+      "fingerprint": "104e397c56f7e54a6b20dd4ed443ecc9e65a9472",
+      "editorCompatibility": "2021.3.0a1",
+      "version": "4.0.4",
+      "source": "registry"
+    },
+    "com.unity.mobile.android-logcat@1.4.6": {
+      "name": "com.unity.mobile.android-logcat",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.mobile.android-logcat",
+      "fingerprint": "1552651bf77000ccde2c38dcdaf265d79c0e5900",
+      "editorCompatibility": "2021.3.0a1",
+      "version": "1.4.6",
+      "source": "registry"
+    },
+    "com.unity.multiplayer.center@1.0.0": {
+      "name": "com.unity.multiplayer.center",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.multiplayer.center",
+      "fingerprint": "f502d8ac613fa076192423e73892fbd89eb4049b",
+      "editorCompatibility": "6000.0.0a1",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.render-pipelines.universal@17.0.3": {
+      "name": "com.unity.render-pipelines.universal",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.render-pipelines.universal",
+      "fingerprint": "4ae203cefa7dd2c6dfb049fa225a2b1d75e71e9e",
+      "editorCompatibility": "6000.0.0a1",
+      "version": "17.0.3",
+      "source": "builtin"
+    },
+    "com.unity.timeline@1.8.9": {
+      "name": "com.unity.timeline",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.timeline",
+      "fingerprint": "6b9e48457ddb4f64813d77fd77efc79a8f3102ae",
+      "editorCompatibility": "2021.3.0a1",
+      "version": "1.8.9",
+      "source": "registry"
+    },
+    "com.unity.toolchain.win-x86_64-linux-x86_64@2.0.11": {
+      "name": "com.unity.toolchain.win-x86_64-linux-x86_64",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.toolchain.win-x86_64-linux-x86_64",
+      "fingerprint": "3c4c356523eddd0339c426b0ed82fb601fc7bd14",
+      "editorCompatibility": "2019.4.0a1",
+      "version": "2.0.11",
+      "source": "registry"
+    },
+    "com.unity.xr.arcore@6.3.1": {
+      "name": "com.unity.xr.arcore",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.xr.arcore",
+      "fingerprint": "a98ab61a5eebcb418483a375369ede5c1b2076eb",
+      "editorCompatibility": "6000.0.0a1",
+      "version": "6.3.1",
+      "source": "registry"
+    },
+    "com.unity.xr.arfoundation@6.3.1": {
+      "name": "com.unity.xr.arfoundation",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.xr.arfoundation",
+      "fingerprint": "f2cbfcba674a47c7c36be501fc6974131f9ee257",
+      "editorCompatibility": "6000.0.0a1",
+      "version": "6.3.1",
+      "source": "registry"
+    },
+    "com.unity.xr.arkit@6.3.1": {
+      "name": "com.unity.xr.arkit",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.xr.arkit",
+      "fingerprint": "d3100c714634bc3800d668e8afbd02c286588d48",
+      "editorCompatibility": "6000.0.0a1",
+      "version": "6.3.1",
+      "source": "registry"
+    },
+    "com.unity.xr.interaction.toolkit@3.3.0": {
+      "name": "com.unity.xr.interaction.toolkit",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.xr.interaction.toolkit",
+      "fingerprint": "4424268f6f279a8da3e9a4524cda7a4c5277050b",
+      "editorCompatibility": "2021.3.0a1",
+      "version": "3.3.0",
+      "source": "registry"
+    },
+    "com.unity.xr.management@4.5.3": {
+      "name": "com.unity.xr.management",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.xr.management",
+      "fingerprint": "574ebfb1e9766bb5f6bdb255c6abfb195b43f4cb",
+      "editorCompatibility": "2022.3.0a1",
+      "version": "4.5.3",
+      "source": "registry"
+    },
+    "com.unity.modules.accessibility@1.0.0": {
+      "name": "com.unity.modules.accessibility",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.accessibility",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.ai@1.0.0": {
+      "name": "com.unity.modules.ai",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.ai",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.androidjni@1.0.0": {
+      "name": "com.unity.modules.androidjni",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.androidjni",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.animation@1.0.0": {
+      "name": "com.unity.modules.animation",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.animation",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.assetbundle@1.0.0": {
+      "name": "com.unity.modules.assetbundle",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.assetbundle",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.audio@1.0.0": {
+      "name": "com.unity.modules.audio",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.audio",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.cloth@1.0.0": {
+      "name": "com.unity.modules.cloth",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.cloth",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.director@1.0.0": {
+      "name": "com.unity.modules.director",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.director",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.imageconversion@1.0.0": {
+      "name": "com.unity.modules.imageconversion",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.imageconversion",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.imgui@1.0.0": {
+      "name": "com.unity.modules.imgui",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.imgui",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.jsonserialize@1.0.0": {
+      "name": "com.unity.modules.jsonserialize",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.jsonserialize",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.particlesystem@1.0.0": {
+      "name": "com.unity.modules.particlesystem",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.particlesystem",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.physics@1.0.0": {
+      "name": "com.unity.modules.physics",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.physics",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.physics2d@1.0.0": {
+      "name": "com.unity.modules.physics2d",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.physics2d",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.screencapture@1.0.0": {
+      "name": "com.unity.modules.screencapture",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.screencapture",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.terrain@1.0.0": {
+      "name": "com.unity.modules.terrain",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.terrain",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.terrainphysics@1.0.0": {
+      "name": "com.unity.modules.terrainphysics",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.terrainphysics",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.tilemap@1.0.0": {
+      "name": "com.unity.modules.tilemap",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.tilemap",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.ui@1.0.0": {
+      "name": "com.unity.modules.ui",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.ui",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.uielements@1.0.0": {
+      "name": "com.unity.modules.uielements",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.uielements",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.umbra@1.0.0": {
+      "name": "com.unity.modules.umbra",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.umbra",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.unityanalytics@1.0.0": {
+      "name": "com.unity.modules.unityanalytics",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.unityanalytics",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.unitywebrequest@1.0.0": {
+      "name": "com.unity.modules.unitywebrequest",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.unitywebrequest",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.unitywebrequestassetbundle@1.0.0": {
+      "name": "com.unity.modules.unitywebrequestassetbundle",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.unitywebrequestassetbundle",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.unitywebrequestaudio@1.0.0": {
+      "name": "com.unity.modules.unitywebrequestaudio",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.unitywebrequestaudio",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.unitywebrequesttexture@1.0.0": {
+      "name": "com.unity.modules.unitywebrequesttexture",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.unitywebrequesttexture",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.unitywebrequestwww@1.0.0": {
+      "name": "com.unity.modules.unitywebrequestwww",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.unitywebrequestwww",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.vehicles@1.0.0": {
+      "name": "com.unity.modules.vehicles",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.vehicles",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.video@1.0.0": {
+      "name": "com.unity.modules.video",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.video",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.vr@1.0.0": {
+      "name": "com.unity.modules.vr",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.vr",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.wind@1.0.0": {
+      "name": "com.unity.modules.wind",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.wind",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.xr@1.0.0": {
+      "name": "com.unity.modules.xr",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.xr",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.subsystems@1.0.0": {
+      "name": "com.unity.modules.subsystems",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.subsystems",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.modules.hierarchycore@1.0.0": {
+      "name": "com.unity.modules.hierarchycore",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.modules.hierarchycore",
+      "version": "1.0.0",
+      "source": "builtin"
+    },
+    "com.unity.xr.legacyinputhelpers@2.1.11": {
+      "name": "com.unity.xr.legacyinputhelpers",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.xr.legacyinputhelpers",
+      "fingerprint": "a3936666e06871a5fd0461a69a4d99efb31a21c1",
+      "editorCompatibility": "2019.4.0a1",
+      "version": "2.1.11",
+      "source": "registry"
+    },
+    "com.unity.mathematics@1.3.2": {
+      "name": "com.unity.mathematics",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.mathematics",
+      "fingerprint": "8017b507cc74bf0a1dd14b18aa860569f807314d",
+      "editorCompatibility": "2021.3.0a1",
+      "version": "1.3.2",
+      "source": "registry"
+    },
+    "com.unity.editorcoroutines@1.0.0": {
+      "name": "com.unity.editorcoroutines",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.editorcoroutines",
+      "fingerprint": "7d48783e7b8cfcee5f8ef9ba787ed0d9dad4ebca",
+      "editorCompatibility": "2018.1.0a1",
+      "version": "1.0.0",
+      "source": "registry"
+    },
+    "com.unity.ugui@2.0.0": {
+      "name": "com.unity.ugui",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.ugui",
+      "fingerprint": "306ebe9b8f890844da2089c9827a12c9a3167c92",
+      "editorCompatibility": "2019.2.0a1",
+      "version": "2.0.0",
+      "source": "builtin"
+    },
+    "com.unity.xr.core-utils@2.5.1": {
+      "name": "com.unity.xr.core-utils",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.xr.core-utils",
+      "fingerprint": "c0df0dd5bced783e855e63d640484ff72ea7dea8",
+      "editorCompatibility": "2021.3.0f1",
+      "version": "2.5.1",
+      "source": "registry"
+    },
+    "com.unity.sysroot@2.0.10": {
+      "name": "com.unity.sysroot",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.sysroot",
+      "fingerprint": "7bbbb9339c143f6fbccaeb0a52c77b9217b35a71",
+      "editorCompatibility": "2019.4.0a1",
+      "version": "2.0.10",
+      "source": "registry"
+    },
+    "com.unity.sysroot.linux-x86_64@2.0.9": {
+      "name": "com.unity.sysroot.linux-x86_64",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.sysroot.linux-x86_64",
+      "fingerprint": "1998d1c7730e48fa49f28d983fececfc9cbd970b",
+      "editorCompatibility": "2019.4.0a1",
+      "version": "2.0.9",
+      "source": "registry"
+    },
+    "com.unity.render-pipelines.core@17.0.3": {
+      "name": "com.unity.render-pipelines.core",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.render-pipelines.core",
+      "fingerprint": "fb5a8524bb649fb6e356667ac7e8208bbc577682",
+      "editorCompatibility": "6000.0.0a1",
+      "version": "17.0.3",
+      "source": "builtin"
+    },
+    "com.unity.shadergraph@17.0.3": {
+      "name": "com.unity.shadergraph",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.shadergraph",
+      "fingerprint": "2a323fec5dcc1ed9dbe9f3565d9515da8cc6058b",
+      "editorCompatibility": "6000.0.0a1",
+      "version": "17.0.3",
+      "source": "builtin"
+    },
+    "com.unity.render-pipelines.universal-config@17.0.3": {
+      "name": "com.unity.render-pipelines.universal-config",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.render-pipelines.universal-config",
+      "fingerprint": "fa63c96d3e1af317d84d171cd6c0e0658ab159df",
+      "editorCompatibility": "6000.0.0a1",
+      "version": "17.0.3",
+      "source": "builtin"
+    },
+    "com.unity.settings-manager@2.0.1": {
+      "name": "com.unity.settings-manager",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.settings-manager",
+      "fingerprint": "56a930affa1e4462d3595b5c19a1c2a4bf2015d2",
+      "editorCompatibility": "2018.4.0a1",
+      "version": "2.0.1",
+      "source": "registry"
+    },
+    "com.unity.ide.visualstudio@2.0.22": {
+      "name": "com.unity.ide.visualstudio",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.ide.visualstudio",
+      "fingerprint": "8140e851d83e922ca2021b04a89519de94ebe38c",
+      "editorCompatibility": "2019.4.25f1",
+      "version": "2.0.22",
+      "source": "registry"
+    },
+    "com.unity.ide.rider@3.0.31": {
+      "name": "com.unity.ide.rider",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.ide.rider",
+      "fingerprint": "7921be93db40ec070fcb01ed82d1c3df1bbdddcd",
+      "editorCompatibility": "2019.2.6f1",
+      "version": "3.0.31",
+      "source": "registry"
+    },
+    "com.unity.performance.profile-analyzer@1.2.2": {
+      "name": "com.unity.performance.profile-analyzer",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.performance.profile-analyzer",
+      "fingerprint": "fe7acfd2717a98ded6ddc33be6b2ebe4459a2add",
+      "editorCompatibility": "2020.3.0a1",
+      "version": "1.2.2",
+      "source": "registry"
+    },
+    "com.unity.test-framework@1.4.5": {
+      "name": "com.unity.test-framework",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.test-framework",
+      "fingerprint": "0a21eb82d95cd331643a1e0ce4e8e9a5f18954c8",
+      "editorCompatibility": "2019.4.0a10",
+      "version": "1.4.5",
+      "source": "registry"
+    },
+    "com.unity.testtools.codecoverage@1.2.6": {
+      "name": "com.unity.testtools.codecoverage",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.testtools.codecoverage",
+      "fingerprint": "205a02cbcb39584f20b51c49b853047aceb3a3a7",
+      "editorCompatibility": "2019.3.0a1",
+      "version": "1.2.6",
+      "source": "registry"
+    },
+    "com.unity.searcher@4.9.2": {
+      "name": "com.unity.searcher",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.searcher",
+      "fingerprint": "90d011a70418fd5b0f4b8e86df39444d2af228dd",
+      "editorCompatibility": "2019.1.0a1",
+      "version": "4.9.2",
+      "source": "registry"
+    },
+    "com.unity.burst@1.8.18": {
+      "name": "com.unity.burst",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.burst",
+      "fingerprint": "616862665d8c8ffe643d505aebb5de2ee73b0ab0",
+      "editorCompatibility": "2020.3.0a1",
+      "version": "1.8.18",
+      "source": "registry"
+    },
+    "com.unity.collections@2.5.1": {
+      "name": "com.unity.collections",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.collections",
+      "fingerprint": "56bff8827a7ef6d44fcee4f36e558a74da89c1a0",
+      "editorCompatibility": "2022.3.11f1",
+      "version": "2.5.1",
+      "source": "registry"
+    },
+    "com.unity.rendering.light-transport@1.0.1": {
+      "name": "com.unity.rendering.light-transport",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.rendering.light-transport",
+      "fingerprint": "307bc27a498fc9cd409bbd426c85d8dc7f140bc1",
+      "editorCompatibility": "2023.3.0b1",
+      "version": "1.0.1",
+      "source": "builtin"
+    },
+    "com.unity.ext.nunit@2.0.5": {
+      "name": "com.unity.ext.nunit",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.ext.nunit",
+      "fingerprint": "60ef35ffd3cd5e2f5c8887a4a4ca6148854cd092",
+      "editorCompatibility": "2019.4.0a1",
+      "version": "2.0.5",
+      "source": "registry"
+    },
+    "com.unity.nuget.mono-cecil@1.11.4": {
+      "name": "com.unity.nuget.mono-cecil",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.nuget.mono-cecil",
+      "fingerprint": "d6f9955a5d5f84d45442ff1ad0fb694cc6e2fd62",
+      "editorCompatibility": "2018.4.0a1",
+      "version": "1.11.4",
+      "source": "registry"
+    },
+    "com.unity.test-framework.performance@3.0.3": {
+      "name": "com.unity.test-framework.performance",
+      "resolvedPath": "D:\\MobileUI\\My project\\Library\\PackageCache\\com.unity.test-framework.performance",
+      "fingerprint": "fb0dc592af8b524f1a06c50d7caf95552f1bcd2f",
+      "editorCompatibility": "2020.3.0a1",
+      "version": "3.0.3",
+      "source": "registry"
+    }
+  }
+}
