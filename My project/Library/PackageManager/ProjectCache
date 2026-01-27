@@ -5,16 +5,16 @@ m_ProjectFiles:
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 639047834203562622
-    m_Hash: 4205725919
+      ticks: 639048119820415416
+    m_Hash: 2190080971
   m_LockFileStatus:
     m_FilePath: D:/MobileUI/My project/Packages/packages-lock.json
     m_PathExists: 1
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 639047834203712632
-    m_Hash: 228234421
+      ticks: 639048119820425407
+    m_Hash: 3298654291
 m_EmbeddedPackageManifests:
   m_ManifestsStatus: {}
 m_LocalPackages:
@@ -694,12 +694,14 @@ m_ResolvedPackages:
     - 1.4.4
     - 1.4.5
     - 1.4.6
+    - 1.4.7
     compatible:
     - 1.4.3
     - 1.4.4
     - 1.4.5
     - 1.4.6
-    recommended: 1.4.6
+    - 1.4.7
+    recommended: 1.4.7
     deprecated: []
   dependencies: []
   resolvedDependencies: []
