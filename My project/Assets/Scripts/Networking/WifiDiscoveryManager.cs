@@ -10,8 +10,11 @@ namespace LuckArkman.XR.Networking
     public class WifiDiscoveryManager : MonoBehaviour
     {
         [Header("Configurações de Rede")]
-        public int discoveryPort = 8888;
-        public string broadcastMessage = "XR_HEADSET_DISCOVERY";
+        // ANTES: public int discoveryPort = 8888;
+        public int discoveryPort = 4444; 
+        
+        // ANTES: public string broadcastMessage = "XR_HEADSET_DISCOVERY";
+        public string broadcastMessage = "LAROSA_IP:"; 
         
         private UdpClient udpListener;
         private IPEndPoint groupEP;
@@ -26,14 +29,39 @@ namespace LuckArkman.XR.Networking
         public Dictionary<string, HeadsetInfo> detectedHeadsets = new Dictionary<string, HeadsetInfo>();
         
         public event Action OnHeadsetFound;
-
+        
         private void Start()
         {
+            // --- INJEÇÃO DIRETA DO IP (O BYPASS) ---
+            string ipFixo = "192.168.17.102";
+            
+            detectedHeadsets[ipFixo] = new HeadsetInfo 
+            { 
+                Name = "Óculos La Rosa (VIP)", 
+                IP = ipFixo, 
+                LastSeen = DateTime.Now 
+            };
+            
+            Debug.Log($"[WifiDiscovery] BYPASS ATIVADO: Injetando o IP fixo {ipFixo} na lista.");
+            
+            // Avisa o HudController para criar o botão na tela imediatamente!
+            OnHeadsetFound?.Invoke();
+
+            // ----------------------------------------
+            
+            // Mantemos a função original ligada apenas por segurança
             StartDiscovery();
         }
 
         public void StartDiscovery()
         {
+            // CORREÇÃO: Verifica se a porta já está sendo ouvida. Se estiver, não faz nada!
+            if (udpListener != null)
+            {
+                Debug.Log($"[WifiDiscovery] O sistema já está ouvindo a porta {discoveryPort}. Ignorando nova chamada.");
+                return; 
+            }
+
             try
             {
                 udpListener = new UdpClient(discoveryPort);
@@ -42,7 +70,13 @@ namespace LuckArkman.XR.Networking
             }
             catch (Exception e)
             {
+                // Se der erro mesmo assim, garantimos que a variável seja limpa
                 Debug.LogError($"[WifiDiscovery] Falha ao iniciar UDP: {e.Message}");
+                if (udpListener != null)
+                {
+                    udpListener.Close();
+                    udpListener = null;
+                }
             }
         }
 
@@ -64,9 +98,11 @@ namespace LuckArkman.XR.Networking
 
         private void ProcessDiscoveryMessage(string msg, string ip)
         {
-            // Esperado: XR_HEADSET_DISCOVERY|DeviceName
-            string[] parts = msg.Split('|');
-            string deviceName = parts.Length > 1 ? parts[1] : "Oculus Unknown";
+            // ANTES: string[] parts = msg.Split('|');
+            // ANTES: string deviceName = parts.Length > 1 ? parts[1] : "Oculus Unknown";
+            
+            // AGORA: Definimos um nome fixo, pois o ESP32 manda apenas o IP, sem o separador '|'
+            string deviceName = "Óculos La Rosa"; 
 
             if (!detectedHeadsets.ContainsKey(ip))
             {
@@ -76,7 +112,10 @@ namespace LuckArkman.XR.Networking
                     IP = ip, 
                     LastSeen = DateTime.Now 
                 };
-                Debug.Log($"[WifiDiscovery] Novo Headset encontrado: {deviceName} em {ip}");
+                
+                // ANTES: Debug.Log($"[WifiDiscovery] Novo Headset encontrado: {deviceName} em {ip}");
+                Debug.Log($"[WifiDiscovery] Novo dispositivo encontrado: {deviceName} em {ip}");
+                
                 OnHeadsetFound?.Invoke();
             }
             else

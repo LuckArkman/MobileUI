@@ -1,37 +1,66 @@
 using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 using LuckArkman.XR.Networking;
-using LuckArkman.XR.AR;
 using LuckArkman.XR.AI;
 using LuckArkman.XR.Safety;
 using LuckArkman.XR.UI;
 using LuckArkman.XR.Optimization;
-using System.Collections.Generic;
 
 namespace LuckArkman.XR.Main
 {
-    /// <summary>
-    /// Orquestrador central que une todos os módulos do sistema.
-    /// Gerencia o fluxo: Streaming -> AR -> IA -> Heatmap -> UI.
-    /// </summary>
     public class MainSystemOrchestrator : MonoBehaviour
     {
         public enum SystemState { Idle, Searching, Connecting, Active, Warning }
         
         [Header("Referências de Módulos")]
         public WifiDiscoveryManager discoveryManager;
-        public SignalingClient signalingClient;
-        public ARCoordinator arCoordinator;
+        public MjpegTextureClient mjpegClient; 
+        public ActuatorClient actuatorClient; 
+        
         public YoloInferenceManager yoloAI;
-        public RiskCalculator riskCalculator;
+        public MidasInferenceManager midasAI; 
+        public Decision decisionMatrix;       
+        
         public HeatmapManager heatmapManager;
         public HudController hudController;
         public BatteryOptimizer batteryOptimizer;
-
-        [Header("Configurações de Execução")]
-        public float aiProcessInterval = 0.1f; // 10 FPS de IA para economizar bateria
         
+        [Header("Módulo de Saída")]
+        public Guia sistemaGuia; 
+        
+        [Header("Áudios de Sistema")]
+        public AudioSource alertAudio; 
+        public AudioClip tutorialAudioClip; 
+
         private SystemState currentState = SystemState.Idle;
-        private float nextAiTick = 0f;
+        private float tempoDescansoManobra = 0f;
+        private bool isSystemAudioPlaying = false; 
+
+        // ==========================================
+        // VARIÁVEIS DO ESCALONADOR EM LOTES (14 FRAMES)
+        // ==========================================
+        private int contadorFrames = 0;
+        private MidasResult ultimoMidasData = new MidasResult();
+        private List<DetectionResult> ultimoYoloData = new List<DetectionResult>();
+
+        private void OnEnable()
+        {
+            if (mjpegClient != null)
+            {
+                mjpegClient.OnConnected += OnConnectionEstablished;
+                mjpegClient.OnDisconnected += OnConnectionLost;
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (mjpegClient != null)
+            {
+                mjpegClient.OnConnected -= OnConnectionEstablished;
+                mjpegClient.OnDisconnected -= OnConnectionLost;
+            }
+        }
 
         private void Start()
         {
@@ -40,7 +69,7 @@ namespace LuckArkman.XR.Main
 
         private void Update()
         {
-            if (currentState == SystemState.Active)
+            if (currentState == SystemState.Active || (mjpegClient != null && mjpegClient.IsConnected))
             {
                 RunActivePipeline();
             }
@@ -48,48 +77,137 @@ namespace LuckArkman.XR.Main
 
         private void RunActivePipeline()
         {
-            // O pipeline de vídeo é gerenciado pelo WebRTC (Sprint 1)
-            // Aqui orquestramos o fluxo de dados para a IA e Segurança
-            
-            if (Time.time >= nextAiTick)
+            // Se o sistema mandou o usuário girar, a IA tira férias de 1.5s para ele executar o movimento.
+            if (Time.time < tempoDescansoManobra) return;
+
+            if (mjpegClient != null && mjpegClient.streamTexture != null && mjpegClient.streamTexture.width > 32)
             {
-                // 1. Obter frame atual do streaming (Exemplo: de uma RenderTexture pública)
-                // yoloAI.ExecuteInference(streamingTexture);
+                // ==============================================================
+                // O ESCALONADOR DE 14 FRAMES (DIVISÃO DE CARGA NA GPU)
+                // ==============================================================
                 
-                // 2. Processar riscos baseados nas detecções (Simulado para integração)
-                ProcessSystemSafety();
-                
-                nextAiTick = Time.time + aiProcessInterval;
+                // (3 MiDaS) -> (3 YOLO) -> (3 MiDaS) -> (3 YOLO) -> (1 MiDaS) -> (1 YOLO)
+                if (contadorFrames < 3 || (contadorFrames >= 6 && contadorFrames < 9) || contadorFrames == 12)
+                {
+                    // TURNO DO MIDAS: Roda a física e confia na memória semântica do YOLO
+                    ultimoMidasData = midasAI.ExecuteInference(mjpegClient.streamTexture);
+                }
+                else 
+                {
+                    // TURNO DO YOLO: Roda a semântica e confia na memória física do MiDaS
+                    ultimoYoloData = GetDetectionsFromAI();
+                }
+
+                // Avança o relógio de frames
+                contadorFrames++;
+                if (contadorFrames >= 14) contadorFrames = 0;
+
+                // ==============================================================
+                // TOMADA DE DECISÃO (Usa sempre os dados mais frescos de ambas as frentes)
+                // ==============================================================
+                if (decisionMatrix != null && sistemaGuia != null)
+                {
+                    Guia.EstadoInstrucao comandoFinal = decisionMatrix.AvaliarCenario(
+                        ultimoYoloData, 
+                        ultimoMidasData, 
+                        mjpegClient.streamTexture.width
+                    );
+                    
+                    if (!isSystemAudioPlaying)
+                    {
+                        // 1. Envia a ordem para a boca falar
+                        sistemaGuia.ExecutarComando(comandoFinal);
+
+                        // 2. DESCANSO COGNITIVO E BATERIA
+                        bool isManobraEvasiva = 
+                            comandoFinal != Guia.EstadoInstrucao.Frente1 && 
+                            comandoFinal != Guia.EstadoInstrucao.Frente2 && 
+                            comandoFinal != Guia.EstadoInstrucao.Frente3 && 
+                            comandoFinal != Guia.EstadoInstrucao.Frente4 && 
+                            comandoFinal != Guia.EstadoInstrucao.Nenhum;
+
+                        if (isManobraEvasiva)
+                        {
+                            // Apenas quando manda girar/parar/desviar, a IA dorme por 1.5s.
+                            tempoDescansoManobra = Time.time + 1.5f; 
+                            decisionMatrix.LimparBuffer(); // Apaga a memória velha para a nova rota
+                        }
+                    }
+                }
             }
+            
+            ProcessSystemSafety(); 
+        }
+
+        private List<DetectionResult> GetDetectionsFromAI()
+        {
+            if (yoloAI != null && mjpegClient != null && mjpegClient.streamTexture != null)
+            {
+                List<DetectionResult> deteccoes = yoloAI.ExecuteInference(mjpegClient.streamTexture);
+                // Ordena por tamanho (os maiores perigos primeiro)
+                if (deteccoes != null) {
+                    deteccoes.Sort((a, b) => (b.box.width * b.box.height).CompareTo(a.box.width * a.box.height));
+                }
+                return deteccoes;
+            }
+            return new List<DetectionResult>();
         }
 
         private void ProcessSystemSafety()
         {
-            // Coleta dados de todos os módulos para gerar o feedback final
-            List<RiskCalculator.ObjectRiskProfile> currentProfiles = new List<RiskCalculator.ObjectRiskProfile>();
-            
-            // Exemplo de lógica de unificação:
-            // Para cada objeto detectado pela IA -> Calcular Risco -> Adicionar ao Heatmap
-            
-            heatmapManager.UpdateHeatmap(currentProfiles);
+            List<HeatmapManager.HeatmapPoint> currentPoints = new List<HeatmapManager.HeatmapPoint>();
+            if (heatmapManager != null) heatmapManager.UpdateHeatmap(currentPoints);
         }
 
         public void SetState(SystemState newState)
         {
             currentState = newState;
-            Debug.Log($"[Orchestrator] Transição de estado: {newState}");
-            // Atualizar HUD opcionalmente aqui
         }
 
         public void OnConnectionEstablished()
         {
             SetState(SystemState.Active);
+            
+            // NOVO: Desliga o HUD assim que conecta!
+            if (hudController != null)
+            {
+                hudController.gameObject.SetActive(false);
+            }
+            
+            if (alertAudio != null)
+            {
+                StartCoroutine(TocarSistemaDeAudioEmFila());
+            }
+        }
+
+        private IEnumerator TocarSistemaDeAudioEmFila()
+        {
+            isSystemAudioPlaying = true;
+            alertAudio.Play();
+
+            float tempoBipe = (alertAudio.clip != null) ? alertAudio.clip.length : 1.0f;
+            yield return new WaitForSeconds(tempoBipe);
+
+            if (tutorialAudioClip != null) 
+            {
+                alertAudio.PlayOneShot(tutorialAudioClip);
+                yield return new WaitForSeconds(tutorialAudioClip.length);
+            }
+
+            isSystemAudioPlaying = false;
         }
 
         public void OnConnectionLost()
         {
             SetState(SystemState.Searching);
-            discoveryManager.StartDiscovery();
+            
+            // NOVO: Religa o HUD se a conexão cair
+            if (hudController != null)
+            {
+                hudController.gameObject.SetActive(true);
+            }
+            
+            if (discoveryManager != null) discoveryManager.StartDiscovery();
         }
     }
 }

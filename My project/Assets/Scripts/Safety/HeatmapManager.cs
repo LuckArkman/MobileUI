@@ -3,40 +3,47 @@ using System.Collections.Generic;
 
 namespace LuckArkman.XR.Safety
 {
-    /// <summary>
-    /// Gerencia os dados para o Shader de Mapa de Calor.
-    /// Alimenta o Global Shader Buffer com as posições de risco.
-    /// </summary>
     public class HeatmapManager : MonoBehaviour
     {
         [Header("Configurações do Heatmap")]
+        [Tooltip("Ative para visualizar o heatmap na tela. Desative em produção para poupar bateria.")]
+        public bool enableHeatmap = false; 
+
         public Material heatmapMaterial;
         public int maxPoints = 50;
 
         private Vector4[] points;
-        private float[] intensities;
+
+        public struct HeatmapPoint
+        {
+            public float x;
+            public float y;
+            public float size;
+            public float riskScore;
+        }
 
         private void Start()
         {
             points = new Vector4[maxPoints];
-            intensities = new float[maxPoints];
         }
 
-        /// <summary>
-        /// Atualiza o shader com os pontos de calor atuais.
-        /// Vector4 format: (x, y, z, intensity)
-        /// </summary>
-        public void UpdateHeatmap(List<RiskCalculator.ObjectRiskProfile> profiles)
+        public void UpdateHeatmap(List<HeatmapPoint> currentPoints)
         {
+            if (!enableHeatmap)
+            {
+                Shader.SetGlobalInt("_HeatmapCount", 0);
+                return;
+            }
+
             for (int i = 0; i < maxPoints; i++)
             {
-                if (i < profiles.Count)
+                if (i < currentPoints.Count)
                 {
                     points[i] = new Vector4(
-                        profiles[i].position.x, 
-                        profiles[i].position.y, 
-                        profiles[i].position.z, 
-                        profiles[i].riskScore
+                        currentPoints[i].x, 
+                        currentPoints[i].y, 
+                        currentPoints[i].size, 
+                        currentPoints[i].riskScore
                     );
                 }
                 else
@@ -45,9 +52,8 @@ namespace LuckArkman.XR.Safety
                 }
             }
 
-            // Envia para o pipeline de renderização (Shader Global)
             Shader.SetGlobalVectorArray("_HeatmapPoints", points);
-            Shader.SetGlobalInt("_HeatmapCount", Mathf.Min(profiles.Count, maxPoints));
+            Shader.SetGlobalInt("_HeatmapCount", Mathf.Min(currentPoints.Count, maxPoints));
         }
     }
 }
