@@ -7271,7 +7271,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0.020202637, y: 0.023071289}
+  m_AnchoredPosition: {x: 0.020263672, y: 0.022949219}
   m_SizeDelta: {x: -1521.4, y: -3211.9}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1188128991
@@ -9546,6 +9546,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c514dfc62548b1a489b3e9d84928b4cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Networking.WifiDiscoveryManager
+  usarIpFixo: 1
+  ipFixo: 192.168.43.50
   discoveryPort: 4444
   broadcastMessage: 'LAROSA_IP:'
 --- !u!114 &1571486780
@@ -9637,7 +9639,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.008239746, y: -0.048461914}
+  m_AnchoredPosition: {x: -0.008300781, y: -0.048339844}
   m_SizeDelta: {x: -1641.6, y: -3465.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1706167581

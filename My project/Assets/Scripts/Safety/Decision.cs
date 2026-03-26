@@ -39,7 +39,6 @@ namespace LuckArkman.XR.Safety
             { "monitor", 2.0f }, { "laptop", 2.0f }, { "tv", 2.0f }, { "porta", 3.0f }
         };
 
-        // Classificação do que é dinâmico no ambiente
         private string[] objetosMoveis = { "pessoa", "carro", "moto", "bicicleta", "onibus", "caminhao", "cachorro", "gato" };
 
         public void LimparBuffer()
@@ -53,10 +52,8 @@ namespace LuckArkman.XR.Safety
             float dimensaoInstantanea = 1f;
             bool temObjetoMovelPerto = false;
 
-            // PREPARAÇÃO PARA O HEATMAP
             List<HeatmapManager.HeatmapPoint> pontosHeatmap = new List<HeatmapManager.HeatmapPoint>();
 
-            // 1. PROCESSAMENTO DO YOLO (Semântica)
             if (yoloDetections != null && yoloDetections.Count > 0)
             {
                 DetectionResult perigoPrincipal = yoloDetections[0];
@@ -74,7 +71,6 @@ namespace LuckArkman.XR.Safety
                     
                     float ocupacaoObj = det.box.width / screenWidth;
 
-                    // Alimenta o array do Heatmap com o YOLO
                     pontosHeatmap.Add(new HeatmapManager.HeatmapPoint {
                         x = det.box.center.x / screenWidth, 
                         y = det.box.center.y / screenWidth, 
@@ -89,45 +85,29 @@ namespace LuckArkman.XR.Safety
                 }
             }
 
-            // 2. PROCESSAMENTO DO MIDAS PARA O HEATMAP (Profundidade Física)
-            // Se o Midas detectar que as coisas estão perto fisicamente, cria grandes manchas de calor.
-            
             if (midasData.leftZoneDanger > 3.0f)
             {
                 pontosHeatmap.Add(new HeatmapManager.HeatmapPoint {
-                    x = 0.25f, // Fica do lado esquerdo da tela
-                    y = 0.5f,
-                    size = 0.6f, // Mancha larga para cobrir o lado esquerdo
-                    riskScore = midasData.leftZoneDanger * 0.5f // Normalizando para a escala de 1 a 5 do YOLO
+                    x = 0.25f, y = 0.5f, size = 0.6f, riskScore = midasData.leftZoneDanger * 0.5f 
                 });
             }
 
             if (midasData.rightZoneDanger > 3.0f)
             {
                 pontosHeatmap.Add(new HeatmapManager.HeatmapPoint {
-                    x = 0.75f, // Fica do lado direito da tela
-                    y = 0.5f,
-                    size = 0.6f,
-                    riskScore = midasData.rightZoneDanger * 0.5f
+                    x = 0.75f, y = 0.5f, size = 0.6f, riskScore = midasData.rightZoneDanger * 0.5f
                 });
             }
 
             if (midasData.dangerScore > 4.0f)
             {
                 pontosHeatmap.Add(new HeatmapManager.HeatmapPoint {
-                    x = 0.5f, // Centro absoluto
-                    y = 0.5f,
-                    size = 0.8f, // Mancha gigante cobrindo o meio
-                    riskScore = midasData.dangerScore * 0.6f 
+                    x = 0.5f, y = 0.5f, size = 0.8f, riskScore = midasData.dangerScore * 0.6f 
                 });
             }
 
-            // ATUALIZA A PLACA DE VÍDEO (GPU) COM A FUSÃO (YOLO + MIDAS)
             if (heatmapManager != null) heatmapManager.UpdateHeatmap(pontosHeatmap);
 
-            // ====================================================================
-            // CÁLCULOS MATEMÁTICOS DE RISCO
-            // ====================================================================
             float riscoInstantaneo = (midasData.dangerScore * 0.7f) + (yoloMaxRisk * 0.5f);
             float bloqueioGeralInstantaneo = (midasData.leftZoneDanger + midasData.rightZoneDanger + midasData.dangerScore) / 3f;
 
@@ -137,8 +117,8 @@ namespace LuckArkman.XR.Safety
                 else if (bloqueioGeralInstantaneo >= 4.0f) dimensaoInstantanea = Mathf.Max(dimensaoInstantanea, 3f);
             }
 
-            // REFLEXO DE EMERGÊNCIA ABSOLUTA
-            if (midasData.absoluteVelocityAlert && riscoInstantaneo > 7.5f)
+            // OTIMIZAÇÃO: Reflexo de emergência mais rigoroso
+            if (midasData.absoluteVelocityAlert && riscoInstantaneo > 7.0f)
             {
                 LimparBuffer(); 
                 emEscapatoria = false; 
@@ -166,7 +146,6 @@ namespace LuckArkman.XR.Safety
             bool esqLivre = avgEsq < 6.0f;
             bool dirLivre = avgDir < 6.0f;
 
-            // FUGA DE CANTOS E BECOS
             if (emEscapatoria)
             {
                 if (avgRisco < thresholdAcao && (esqLivre || dirLivre))
@@ -195,25 +174,46 @@ namespace LuckArkman.XR.Safety
             }
 
             // =========================================================================
-            // SOBREPOSIÇÃO DO GPS E PRIORIDADE ROTACIONAL
+            // SOBREPOSIÇÃO DO GPS E PRIORIDADE ROTACIONAL (OTIMIZADA)
             // =========================================================================
-            if (avgRisco < 4.0f && NavigationManager.Instance != null && NavigationManager.Instance.anguloRelativoAoDestino != 0)
+            if (avgRisco < 4.0f && NavigationManager.Instance != null && NavigationManager.Instance.isNavigating)
             {
                 float anguloRelativo = NavigationManager.Instance.anguloRelativoAoDestino;
 
-                if (Mathf.Abs(anguloRelativo) > 120f)
+                if (anguloRelativo != 0f)
                 {
-                    if (temObjetoMovelPerto) return Guia.EstadoInstrucao.Parar;
-                    
-                    LimparBuffer();
-                    return anguloRelativo > 0 ? Guia.EstadoInstrucao.GirarDireita : Guia.EstadoInstrucao.GirarEsquerda;
-                }
+                    // O GPS exige uma manobra grande (curva ou retorno)
+                    if (Mathf.Abs(anguloRelativo) > 90f)
+                    {
+                        if (temObjetoMovelPerto) return Guia.EstadoInstrucao.Parar;
+                        
+                        // IA verifica se a curva é segura fisicamente
+                        if (anguloRelativo > 0 && avgDir < 4.0f) 
+                        {
+                            LimparBuffer();
+                            return Guia.EstadoInstrucao.GirarDireita;
+                        }
+                        if (anguloRelativo < 0 && avgEsq < 4.0f) 
+                        {
+                            LimparBuffer();
+                            return Guia.EstadoInstrucao.GirarEsquerda;
+                        }
+                        
+                        return Guia.EstadoInstrucao.Parar; // Espera o lado liberar
+                    }
 
-                if (anguloRelativo > 30f) return Guia.EstadoInstrucao.GirarDireita;
-                if (anguloRelativo < -30f) return Guia.EstadoInstrucao.GirarEsquerda;
+                    // O GPS pede apenas uma correção de rota leve (ex: contornar uma pequena praça)
+                    if (anguloRelativo > 0f && avgDir < 4.5f) 
+                    {
+                        return Guia.EstadoInstrucao.DesviarDireita; 
+                    }
+                    if (anguloRelativo < 0f && avgEsq < 4.5f) 
+                    {
+                        return Guia.EstadoInstrucao.DesviarEsquerda; 
+                    }
+                }
             }
 
-            // OBSTÁCULO IMINENTE (Perigos Estáticos / Bloqueios)
             if (avgRisco >= thresholdAcao)
             {
                 if (!esqLivre && !dirLivre)
@@ -247,7 +247,6 @@ namespace LuckArkman.XR.Safety
                 return acaoEscolhida;
             }
 
-            // PROGRESSÃO FRONTAL 
             if (avgRisco < 2.0f) return Guia.EstadoInstrucao.Frente4;
             else if (avgRisco < 3.2f) return Guia.EstadoInstrucao.Frente3;
             else if (avgRisco < 4.2f) return Guia.EstadoInstrucao.Frente2;

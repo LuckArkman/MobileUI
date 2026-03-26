@@ -20,16 +20,17 @@ namespace LuckArkman.XR.Navigation
         public PrototypeUIManager uiManager; 
 
         [Header("Parâmetros de Navegação")]
-        public float raioDeCaptura = 4.0f; 
+        public float raioDeCapturaBase = 4.0f; // <-- Modificado para base
         private float servoUpdateInterval = 0.5f; 
 
         [Header("Comunicação com IA (Decision)")]
         [Tooltip("O módulo de Decisão vai ler este valor em tempo real.")]
-        public int anguloDesejadoGPS = 90; // Começa olhando para frente
+        public int anguloDesejadoGPS = 90; 
+        
         // --- Estado Interno ---
         private RouteData rotaAtiva;
         private int indicePontoAtual = 0;
-        private bool isNavigating = false;
+        public bool isNavigating = false; 
         private float lastServoUpdateTime = 0f;
 
         void Awake()
@@ -48,8 +49,14 @@ namespace LuckArkman.XR.Navigation
             Debug.Log($"[Navigation] Rota Iniciada! Total de Pontos: {rotaAtiva.nos.Count}");
         }
 
-        
-        // NOVO: Expor o ângulo exato (-180 a 180) para a IA saber se o destino está nas costas
+        public void PararNavegacao()
+        {
+            isNavigating = false;
+            rotaAtiva = null;
+            anguloRelativoAoDestino = 0f;
+            Debug.Log("[Navigation] Navegação Cancelada ou Pausada.");
+        }
+
         [HideInInspector] public float anguloRelativoAoDestino = 0f; 
 
         void Update()
@@ -60,38 +67,55 @@ namespace LuckArkman.XR.Navigation
             float lonAtual = GPSManager.Instance.longitude;
             float headingAtual = GPSManager.Instance.currentHeading;
 
-            // =====================================================================
-            // NOVO: SISTEMA DE NÃO-REGRESSÃO E PRIORIDADE DE ID MAIOR
-            // Escaneia a rota de trás para frente. Se achar um ponto no raio, pula direto pra ele.
-            // =====================================================================
-            for (int i = rotaAtiva.nos.Count - 1; i >= indicePontoAtual; i--)
+            // OTIMIZAÇÃO: Se o usuário estiver andando rápido, o raio de captura aumenta para não perder a migalha
+            float velocidadeEstimada = Input.compass.enabled ? Input.compass.headingAccuracy : 0; 
+            float raioDeCaptura = raioDeCapturaBase + (velocidadeEstimada * 0.1f);
+
+            // 1. CHECAGEM DE PROGRESSO
+            RouteNode alvoAtual = rotaAtiva.nos[indicePontoAtual];
+            float distanciaAteAtual = CalculateDistance(latAtual, lonAtual, (float)alvoAtual.latitude, (float)alvoAtual.longitude);
+
+            // 2. AVANÇO ORGÂNICO
+            if (distanciaAteAtual <= raioDeCaptura)
             {
-                RouteNode checkNode = rotaAtiva.nos[i];
-                float checkDist = CalculateDistance(latAtual, lonAtual, (float)checkNode.latitude, (float)checkNode.longitude);
-                
-                if (checkDist <= raioDeCaptura)
-                {
-                    indicePontoAtual = i; // Pula todos os pontos anteriores (Não-Regressão)
-                    AvancarParaProximoPonto();
-                    return; // Encerra o frame, pois o índice mudou
-                }
+                AvancarParaProximoPonto();
+                return; 
             }
 
-            // Se não alcançou nenhum ponto, foca no ponto alvo atual
-            RouteNode alvo = rotaAtiva.nos[indicePontoAtual];
-            float distancia = CalculateDistance(latAtual, lonAtual, (float)alvo.latitude, (float)alvo.longitude);
-            float anguloDestino = CalculateBearing(latAtual, lonAtual, (float)alvo.latitude, (float)alvo.longitude);
+            // 3. LOOKAHEAD PROGRESSIVO
+            float anguloDestino = CalculateBearing(latAtual, lonAtual, (float)alvoAtual.latitude, (float)alvoAtual.longitude);
 
-            // 4. Atualiza a Tela (Apenas os números, pois a arte já tem a palavra)
+            if (distanciaAteAtual < raioDeCaptura * 2f && indicePontoAtual + 1 < rotaAtiva.nos.Count)
+            {
+                RouteNode proximoAlvo = rotaAtiva.nos[indicePontoAtual + 1];
+                float anguloProximo = CalculateBearing(latAtual, lonAtual, (float)proximoAlvo.latitude, (float)proximoAlvo.longitude);
+                
+                // OTIMIZAÇÃO: LerpAngle mais seguro, usando a função nativa da Unity para rotações
+                float fatorMescla = Mathf.Clamp01(1f - (distanciaAteAtual / (raioDeCaptura * 2f)));
+                anguloDestino = Mathf.LerpAngle(anguloDestino, anguloProximo, fatorMescla);
+            }
+
+            // 4. ATUALIZA A UI
             if (txtDistanciaUI != null) 
             {
-                txtDistanciaUI.text = $"{distancia:F1} m";
+                txtDistanciaUI.text = $"{distanciaAteAtual:F1} m";
             }
 
-            // Cálculo do ângulo
-            anguloRelativoAoDestino = Mathf.DeltaAngle(headingAtual, anguloDestino);
+            // 5. CÁLCULO DE BÚSSOLA COM HISTERESE
+            float anguloBruto = Mathf.DeltaAngle(headingAtual, anguloDestino);
+            
+            if (Mathf.Abs(anguloBruto) < 20f)
+            {
+                anguloRelativoAoDestino = 0f; 
+            }
+            else
+            {
+                anguloRelativoAoDestino = anguloBruto;
+            }
+
             int anguloServo = Mathf.Clamp(Mathf.RoundToInt(90f + anguloRelativoAoDestino), 0, 180);
 
+            // 6. ATUALIZA O SERVO
             if (Time.time - lastServoUpdateTime > servoUpdateInterval)
             {
                 anguloDesejadoGPS = anguloServo;
@@ -122,7 +146,6 @@ namespace LuckArkman.XR.Navigation
 
         public void ResetarServoManual()
         {
-            // O reset manual ainda manda direto por segurança
             StartCoroutine(SendServoCommand(90));
         }
 
@@ -154,7 +177,6 @@ namespace LuckArkman.XR.Navigation
             return R * c; 
         }
 
-        // --- COMUNICAÇÃO HTTP ---
         private IEnumerator SendServoCommand(int angle)
         {
             string url = $"http://{esp32IpAddress}:{portaControle}/actuator?angle={angle}";

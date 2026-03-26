@@ -9,11 +9,13 @@ namespace LuckArkman.XR.Networking
 {
     public class WifiDiscoveryManager : MonoBehaviour
     {
+        [Header("Modo de Teste Rápido (Bypass)")]
+        [Tooltip("Marque para testar sem o óculos físico ligado")]
+        public bool usarIpFixo = false;
+        public string ipFixo = "192.168.43.50";
+
         [Header("Configurações de Rede")]
-        // ANTES: public int discoveryPort = 8888;
         public int discoveryPort = 4444; 
-        
-        // ANTES: public string broadcastMessage = "XR_HEADSET_DISCOVERY";
         public string broadcastMessage = "LAROSA_IP:"; 
         
         private UdpClient udpListener;
@@ -32,30 +34,29 @@ namespace LuckArkman.XR.Networking
         
         private void Start()
         {
-            // --- INJEÇÃO DIRETA DO IP (O BYPASS) ---
-            string ipFixo = "192.168.17.102";
-            
-            detectedHeadsets[ipFixo] = new HeadsetInfo 
-            { 
-                Name = "Óculos La Rosa (VIP)", 
-                IP = ipFixo, 
-                LastSeen = DateTime.Now 
-            };
-            
-            Debug.Log($"[WifiDiscovery] BYPASS ATIVADO: Injetando o IP fixo {ipFixo} na lista.");
-            
-            // Avisa o HudController para criar o botão na tela imediatamente!
-            OnHeadsetFound?.Invoke();
-
-            // ----------------------------------------
-            
-            // Mantemos a função original ligada apenas por segurança
-            StartDiscovery();
+            if (usarIpFixo)
+            {
+                Debug.Log($"[WifiDiscovery] MODO DESENVOLVEDOR: Injetando IP {ipFixo}");
+                
+                detectedHeadsets[ipFixo] = new HeadsetInfo 
+                { 
+                    Name = "Óculos La Rosa (Bypass)", 
+                    IP = ipFixo, 
+                    LastSeen = DateTime.Now 
+                };
+                
+                // Avisa a UI para desenhar o botão imediatamente
+                OnHeadsetFound?.Invoke();
+            }
+            else
+            {
+                // Modo Produção: Vai pra rua e procura o grito do ESP32
+                StartDiscovery();
+            }
         }
 
         public void StartDiscovery()
         {
-            // CORREÇÃO: Verifica se a porta já está sendo ouvida. Se estiver, não faz nada!
             if (udpListener != null)
             {
                 Debug.Log($"[WifiDiscovery] O sistema já está ouvindo a porta {discoveryPort}. Ignorando nova chamada.");
@@ -67,10 +68,12 @@ namespace LuckArkman.XR.Networking
                 udpListener = new UdpClient(discoveryPort);
                 groupEP = new IPEndPoint(IPAddress.Any, discoveryPort);
                 Debug.Log($"[WifiDiscovery] Ouvindo na porta {discoveryPort}...");
+                
+                // OTIMIZAÇÃO: Começa a escutar o UDP de forma assíncrona (em segundo plano)
+                udpListener.BeginReceive(new AsyncCallback(ReceiveCallback), null);
             }
             catch (Exception e)
             {
-                // Se der erro mesmo assim, garantimos que a variável seja limpa
                 Debug.LogError($"[WifiDiscovery] Falha ao iniciar UDP: {e.Message}");
                 if (udpListener != null)
                 {
@@ -80,28 +83,31 @@ namespace LuckArkman.XR.Networking
             }
         }
 
-        private void Update()
+        // Esta função roda invisível no fundo, sem derrubar o FPS da Unity
+        private void ReceiveCallback(IAsyncResult ar)
         {
             if (udpListener == null) return;
 
-            while (udpListener.Available > 0)
+            try
             {
-                byte[] bytes = udpListener.Receive(ref groupEP);
+                byte[] bytes = udpListener.EndReceive(ar, ref groupEP);
                 string message = Encoding.UTF8.GetString(bytes);
                 
                 if (message.StartsWith(broadcastMessage))
                 {
+                    // Como estamos em outra Thread, precisamos passar os dados para processamento
                     ProcessDiscoveryMessage(message, groupEP.Address.ToString());
                 }
+
+                // Volta a escutar o próximo pacote da rede
+                udpListener.BeginReceive(new AsyncCallback(ReceiveCallback), null);
             }
+            catch (ObjectDisposedException) { /* Ignora se o Listener foi fechado ao fechar o app */ }
+            catch (Exception e) { Debug.LogError($"[WifiDiscovery] Erro no Receive: {e.Message}"); }
         }
 
         private void ProcessDiscoveryMessage(string msg, string ip)
         {
-            // ANTES: string[] parts = msg.Split('|');
-            // ANTES: string deviceName = parts.Length > 1 ? parts[1] : "Oculus Unknown";
-            
-            // AGORA: Definimos um nome fixo, pois o ESP32 manda apenas o IP, sem o separador '|'
             string deviceName = "Óculos La Rosa"; 
 
             if (!detectedHeadsets.ContainsKey(ip))
@@ -113,10 +119,10 @@ namespace LuckArkman.XR.Networking
                     LastSeen = DateTime.Now 
                 };
                 
-                // ANTES: Debug.Log($"[WifiDiscovery] Novo Headset encontrado: {deviceName} em {ip}");
                 Debug.Log($"[WifiDiscovery] Novo dispositivo encontrado: {deviceName} em {ip}");
                 
-                OnHeadsetFound?.Invoke();
+                // Como não podemos desenhar botões direto de uma Thread de fundo, mandamos a Unity fazer isso no próximo frame
+                UnityMainThreadDispatcher.Instance().Enqueue(() => OnHeadsetFound?.Invoke());
             }
             else
             {
@@ -128,7 +134,11 @@ namespace LuckArkman.XR.Networking
 
         private void OnDestroy()
         {
-            udpListener?.Close();
+            if (udpListener != null)
+            {
+                udpListener.Close();
+                udpListener = null;
+            }
         }
     }
 }
