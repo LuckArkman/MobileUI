@@ -1,55 +1,43 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ui:UXML
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:ui="UnityEngine.UIElements"
-    xmlns:uie="UnityEditor.UIElements"
-    xsi:noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd"
->
-    <Style src="MainHUD.uss" />
-    <ui:VisualElement name="Container" class="hud-container">
-        <ui:VisualElement name="MainPanel" class="glass-panel" style="width: 400px; height: 600px; position: absolute; right: 20px; top: 20px;">
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/HUD/MainHUD.uss?fileID=7433441132597879392&amp;guid=127c72fdd24143a4ab7c5dae4f7a6951&amp;type=3#MainHUD"/>
+    <ui:VisualElement name="Container" class="hud-container" style="width: 443px; background-position-x: left 0;">
+        <ui:VisualElement name="MainPanel" class="glass-panel" style="width: 560px; height: 820px; position: absolute; right: -136px; top: 34px;">
             <ui:VisualElement class="header">
-                <ui:Label text="SISTEMA XR" class="title" />
+                <ui:Label text="SISTEMA XR" class="title" style="font-size: 36px;"/>
                 <ui:VisualElement name="StatusTag" class="status-indicator status-searching">
-                    <ui:Label text="BUSCANDO..." name="StatusLabel" />
+                    <ui:Label text="BUSCANDO..." name="StatusLabel" style="font-size: 24px;"/>
                 </ui:VisualElement>
             </ui:VisualElement>
-
-            <ui:Label name="ArStatusText" text="ESPACIAL: INICIALIZANDO..." style="color: #eab308; font-size: 10px; -unity-font-style: bold; margin-bottom: 2px;" />
-            <ui:Label name="AiStatusText" text="IA: AGUARDANDO MODELO..." style="color: #38bdf8; font-size: 10px; -unity-font-style: bold; margin-bottom: 5px;" />
-
-            <ui:VisualElement name="TechStats" style="flex-direction: row; justify-content: space-around; margin-bottom: 10px; padding: 10px; background-color: rgba(0, 0, 0, 0.2); border-radius: 8px;">
+            <ui:Label name="ArStatusText" text="ESPACIAL: INICIALIZANDO..." style="color: rgb(234, 179, 8); font-size: 16px; -unity-font-style: bold; margin-bottom: 2px;"/>
+            <ui:Label name="AiStatusText" text="IA: AGUARDANDO MODELO..." style="color: rgb(56, 189, 248); font-size: 20px; -unity-font-style: bold; margin-bottom: 5px; -unity-text-align: upper-center;"/>
+            <ui:VisualElement name="TechStats" style="flex-direction: row; justify-content: space-around; margin-bottom: 10px; padding: 10px; background-color: rgba(0, 0, 0, 0.2); border-radius: 8px; height: 86px;">
                 <ui:VisualElement style="align-items: center;">
-                    <ui:Label text="LATÊNCIA" style="color: rgba(255, 255, 255, 0.5); font-size: 10px;" />
-                    <ui:Label name="LatencyValue" text="0.0 ms" style="color: #38bdf8; font-size: 14px; -unity-font-style: bold;" />
+                    <ui:Label text="LATÊNCIA" style="color: rgba(255, 255, 255, 0.5); font-size: 16px;"/>
+                    <ui:Label name="LatencyValue" text="0.0 ms" style="color: rgb(56, 189, 248); font-size: 20px; -unity-font-style: bold;"/>
                 </ui:VisualElement>
                 <ui:VisualElement style="align-items: center;">
-                    <ui:Label text="BITRATE" style="color: rgba(255, 255, 255, 0.5); font-size: 10px;" />
-                    <ui:Label name="BitrateValue" text="0.0 Mbps" style="color: #38bdf8; font-size: 14px; -unity-font-style: bold;" />
+                    <ui:Label text="BITRATE" style="color: rgba(255, 255, 255, 0.5); font-size: 16px;"/>
+                    <ui:Label name="BitrateValue" text="0.0 Mbps" style="color: rgb(56, 189, 248); font-size: 20px; -unity-font-style: bold;"/>
                 </ui:VisualElement>
             </ui:VisualElement>
-
-            <!-- Diagnósticos (Sprint 5) -->
             <ui:VisualElement style="flex-direction: row; justify-content: space-between; margin-bottom: 10px;">
-                <ui:Label name="DiagnosticFPS" text="FPS: --" style="color: rgba(255, 255, 255, 0.4); font-size: 9px;" />
-                <ui:Label name="DiagnosticMem" text="MEM: --" style="color: rgba(255, 255, 255, 0.4); font-size: 9px;" />
+                <ui:Label name="DiagnosticFPS" text="FPS: --" style="color: rgba(255, 255, 255, 0.4); font-size: 16px;"/>
+                <ui:Label name="DiagnosticMem" text="MEM: --" style="color: rgba(255, 255, 255, 0.4); font-size: 16px;"/>
             </ui:VisualElement>
-
-            <ui:Label text="HEADSETS DISPONÍVEIS" style="color: rgba(255, 255, 255, 0.5); font-size: 12px; margin-bottom: 10px;" />
-            
+            <ui:Label text="Conexões Disponíveis" style="color: rgba(255, 255, 255, 0.5); font-size: 16px; margin-bottom: 10px;"/>
             <ui:ScrollView name="DeviceList" class="device-list">
-                <!-- Items serão injetados via script -->
-                <ui:VisualElement class="device-item">
-                    <ui:Label text="Oculus Quest 3" class="device-name" />
-                    <ui:Button text="CONECTAR" class="control-btn" />
+                <ui:VisualElement class="device-item" style="height: 83px; width: 512px;">
+                    <ui:Label text="Oculus Quest 3" class="device-name" style="font-size: 24px;"/>
+                    <ui:Button text="CONECTAR" class="control-btn"/>
                 </ui:VisualElement>
             </ui:ScrollView>
-
-            <ui:VisualElement class="footer">
-                <ui:Button name="BtnStream" class="icon-btn" tooltip="Streaming de Vídeo" />
-                <ui:Button name="BtnScan" class="icon-btn" tooltip="Detecção de Objetos" />
-                <ui:Button name="BtnHeatmap" class="icon-btn" tooltip="Mapa de Calor" />
-                <ui:Button name="BtnSettings" class="icon-btn" tooltip="Configurações" />
+            <ui:VisualElement class="footer" style="height: 89px; width: 515px;">
+                <ui:Button name="ToggleVideoBtn" tooltip="Streaming de Vídeo" text="" class="icon-btn" style="background-color: rgba(229, 229, 229, 0.96); background-image: url(&quot;project://database/Assets/UI/HUD/imagem_2026-03-10_124344415-removebg-preview.png?fileID=2800000&amp;guid=2318af900d6ac3c4baec0471fc070c6c&amp;type=3#imagem_2026-03-10_124344415-removebg-preview&quot;); height: 78px; width: 103px;">
+                    <ui:VisualElement name="CamSprite" style="flex-grow: 1; position: absolute;"/>
+                </ui:Button>
+                <ui:Button name="BtnScan" tooltip="Detecção de Objetos" class="icon-btn" style="width: 103px; height: 78px;"/>
+                <ui:Button name="BtnHeatmap" tooltip="Mapa de Calor" class="icon-btn" style="width: 103px; height: 78px;"/>
+                <ui:Button name="BtnSettings" tooltip="Configurações" class="icon-btn" style="width: 103px; height: 78px;"/>
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

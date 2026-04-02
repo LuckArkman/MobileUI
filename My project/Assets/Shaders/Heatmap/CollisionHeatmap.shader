@@ -2,6 +2,7 @@ Shader "LuckArkman/XR/CollisionHeatmap"
 {
     Properties
     {
+        _MainTex ("Texture", 2D) = "white" {}
         _BaseColor ("Base Color", Color) = (0,1,0,0.1)
         _HeatRadius ("Heat Radius", Float) = 1.5
     }
