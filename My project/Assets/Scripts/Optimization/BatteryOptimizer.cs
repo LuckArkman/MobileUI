@@ -14,18 +14,22 @@ namespace LuckArkman.XR.Optimization
         
         private void Start()
         {
-            // Otimização inicial para mobile
+            // Garante que a tela não bloqueie automaticamente durante a navegação.
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
+
+            // Permite que Update() e Coroutines continuem rodando quando o app
+            // está em background (complementa o BackgroundServiceManager).
+            Application.runInBackground = true;
+
             Application.targetFrameRate = targetFrameRateActive;
-            
-            // Sugestão para o Android: Reduzir a frequência da CPU quando possível via API nativa (requer plugin)
+
             Debug.Log("[BatteryOptimizer] Sistema de economia de energia inicializado.");
         }
 
-        public void SetLowPowerMode(bool enabled)
+        public void SetLowPowerMode(bool isLowPower)
         {
-            Application.targetFrameRate = enabled ? targetFrameRateIdle : targetFrameRateActive;
-            Debug.Log($"[BatteryOptimizer] Low Power Mode: {enabled} (FPS: {Application.targetFrameRate})");
+            Application.targetFrameRate = isLowPower ? targetFrameRateIdle : targetFrameRateActive;
+            Debug.Log($"[BatteryOptimizer] Low Power Mode: {isLowPower} (FPS: {Application.targetFrameRate})");
         }
 
         private void Update()

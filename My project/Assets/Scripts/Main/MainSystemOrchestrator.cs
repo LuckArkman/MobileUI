@@ -6,6 +6,7 @@ using LuckArkman.XR.AI;
 using LuckArkman.XR.Safety;
 using LuckArkman.XR.UI;
 using LuckArkman.XR.Optimization;
+using LuckArkman.XR.Voice;
 
 namespace LuckArkman.XR.Main
 {
@@ -26,12 +27,21 @@ namespace LuckArkman.XR.Main
         public HudController hudController;
         public BatteryOptimizer batteryOptimizer;
         
-        [Header("Módulo de Saída")]
-        public Guia sistemaGuia; 
-        
+        [Header("Módulo de Saída (Legado — AudioClips)")]
+        [Tooltip("Sistema de saída por AudioClips. Usado apenas se voiceDirector for nulo.")]
+        public Guia sistemaGuia;
+
+        [Header("Sistema de Voz TTS (Feature 3)")]
+        [Tooltip("VoiceDirectorService que gerencia a fila de fala priorizada via TTS Android.")]
+        public VoiceDirectorService voiceDirector;
+
+        [Header("Câmera Fallback (Feature 4)")]
+        [Tooltip("Câmera do smartphone. Usada quando o óculos XR não está conectado.")]
+        public SmartphoneCameraSource smartphoneCamera;
+
         [Header("Áudios de Sistema")]
-        public AudioSource alertAudio; 
-        public AudioClip tutorialAudioClip; 
+        public AudioSource alertAudio;
+        public AudioClip tutorialAudioClip;
 
         private SystemState currentState = SystemState.Idle;
         private float tempoDescansoManobra = 0f;
@@ -69,7 +79,11 @@ namespace LuckArkman.XR.Main
 
         private void Update()
         {
-            if (currentState == SystemState.Active || (mjpegClient != null && mjpegClient.IsConnected))
+            // Executa o pipeline se o óculos está conectado OU se a câmera fallback está ativa
+            bool xrAtivo = mjpegClient != null && mjpegClient.IsConnected;
+            bool cameraAtiva = smartphoneCamera != null && smartphoneCamera.IsActive;
+
+            if (currentState == SystemState.Active || xrAtivo || cameraAtiva)
             {
                 RunActivePipeline();
             }
@@ -77,78 +91,155 @@ namespace LuckArkman.XR.Main
 
         private void RunActivePipeline()
         {
-            // Se o sistema mandou o usuário girar, a IA tira férias de 1.5s para ele executar o movimento.
             if (Time.time < tempoDescansoManobra) return;
 
-            if (mjpegClient != null && mjpegClient.streamTexture != null && mjpegClient.streamTexture.width > 32)
+            // === FEATURE 4: Seleção da fonte de vídeo ===
+            // Prioridade 1: Stream do óculos XR | Prioridade 2: Câmera do smartphone
+            Texture2D texAtiva = GetActiveVideoSource();
+            if (texAtiva == null) return;
+
+            // ==============================================================
+            // ESCALONADOR DE 14 FRAMES (DIVISÃO DE CARGA NA GPU)
+            // (3 MiDaS) -> (3 YOLO) -> (3 MiDaS) -> (3 YOLO) -> (1 MiDaS) -> (1 YOLO)
+            // ==============================================================
+            if (contadorFrames < 3 || (contadorFrames >= 6 && contadorFrames < 9) || contadorFrames == 12)
             {
-                // ==============================================================
-                // O ESCALONADOR DE 14 FRAMES (DIVISÃO DE CARGA NA GPU)
-                // ==============================================================
-                
-                // (3 MiDaS) -> (3 YOLO) -> (3 MiDaS) -> (3 YOLO) -> (1 MiDaS) -> (1 YOLO)
-                if (contadorFrames < 3 || (contadorFrames >= 6 && contadorFrames < 9) || contadorFrames == 12)
-                {
-                    // TURNO DO MIDAS: Roda a física e confia na memória semântica do YOLO
-                    ultimoMidasData = midasAI.ExecuteInference(mjpegClient.streamTexture);
-                }
-                else 
-                {
-                    // TURNO DO YOLO: Roda a semântica e confia na memória física do MiDaS
-                    ultimoYoloData = GetDetectionsFromAI();
-                }
+                ultimoMidasData = midasAI.ExecuteInference(texAtiva);
+            }
+            else
+            {
+                ultimoYoloData = GetDetectionsFromAI(texAtiva);
+            }
 
-                // Avança o relógio de frames
-                contadorFrames++;
-                if (contadorFrames >= 14) contadorFrames = 0;
+            contadorFrames++;
+            if (contadorFrames >= 14) contadorFrames = 0;
 
-                // ==============================================================
-                // TOMADA DE DECISÃO (Usa sempre os dados mais frescos de ambas as frentes)
-                // ==============================================================
-                if (decisionMatrix != null && sistemaGuia != null)
+            // ==============================================================
+            // TOMADA DE DECISÃO
+            // ==============================================================
+            if (decisionMatrix != null)
+            {
+                Guia.EstadoInstrucao comandoFinal = decisionMatrix.AvaliarCenario(
+                    ultimoYoloData,
+                    ultimoMidasData,
+                    texAtiva.width
+                );
+
+                if (!isSystemAudioPlaying)
                 {
-                    Guia.EstadoInstrucao comandoFinal = decisionMatrix.AvaliarCenario(
-                        ultimoYoloData, 
-                        ultimoMidasData, 
-                        mjpegClient.streamTexture.width
-                    );
-                    
-                    if (!isSystemAudioPlaying)
+                    // === FEATURE 3: VoiceDirector tem prioridade sobre Guia legado ===
+                    if (voiceDirector != null)
                     {
-                        // 1. Envia a ordem para a boca falar
+                        string textoComando = ConverterComandoParaTexto(comandoFinal, ultimoYoloData, ultimoMidasData);
+                        if (!string.IsNullOrEmpty(textoComando))
+                            voiceDirector.Enqueue(textoComando, VoicePriority.Obstacle);
+                    }
+                    else if (sistemaGuia != null)
+                    {
+                        // Fallback: sistema legado de AudioClips
                         sistemaGuia.ExecutarComando(comandoFinal);
+                    }
 
-                        // 2. DESCANSO COGNITIVO E BATERIA
-                        bool isManobraEvasiva = 
-                            comandoFinal != Guia.EstadoInstrucao.Frente1 && 
-                            comandoFinal != Guia.EstadoInstrucao.Frente2 && 
-                            comandoFinal != Guia.EstadoInstrucao.Frente3 && 
-                            comandoFinal != Guia.EstadoInstrucao.Frente4 && 
-                            comandoFinal != Guia.EstadoInstrucao.Nenhum;
+                    bool isManobraEvasiva =
+                        comandoFinal != Guia.EstadoInstrucao.Frente1 &&
+                        comandoFinal != Guia.EstadoInstrucao.Frente2 &&
+                        comandoFinal != Guia.EstadoInstrucao.Frente3 &&
+                        comandoFinal != Guia.EstadoInstrucao.Frente4 &&
+                        comandoFinal != Guia.EstadoInstrucao.Nenhum;
 
-                        if (isManobraEvasiva)
-                        {
-                            // Apenas quando manda girar/parar/desviar, a IA dorme por 1.5s.
-                            tempoDescansoManobra = Time.time + 1.5f; 
-                            decisionMatrix.LimparBuffer(); // Apaga a memória velha para a nova rota
-                        }
+                    if (isManobraEvasiva)
+                    {
+                        tempoDescansoManobra = Time.time + 1.5f;
+                        decisionMatrix.LimparBuffer();
                     }
                 }
             }
-            
-            ProcessSystemSafety(); 
+
+            ProcessSystemSafety();
         }
 
-        private List<DetectionResult> GetDetectionsFromAI()
+        /// <summary>
+        /// Retorna a textura ativa para o pipeline de IA.
+        /// Prioridade 1: Stream MJPEG do óculos XR
+        /// Prioridade 2: Câmera traseira do smartphone (Feature 4)
+        /// </summary>
+        private Texture2D GetActiveVideoSource()
         {
-            if (yoloAI != null && mjpegClient != null && mjpegClient.streamTexture != null)
+            if (mjpegClient != null &&
+                mjpegClient.IsConnected &&
+                mjpegClient.streamTexture != null &&
+                mjpegClient.streamTexture.width > 32)
             {
-                List<DetectionResult> deteccoes = yoloAI.ExecuteInference(mjpegClient.streamTexture);
-                // Ordena por tamanho (os maiores perigos primeiro)
-                if (deteccoes != null) {
+                return mjpegClient.streamTexture;
+            }
+
+            if (smartphoneCamera != null &&
+                smartphoneCamera.IsActive &&
+                smartphoneCamera.CurrentFrame != null)
+            {
+                return smartphoneCamera.CurrentFrame;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Converte o enum de instrução em falas humanizadas dinâmicas,
+        /// extraindo o nome do obstáculo (YOLO) e estimando a distância em passos (MiDaS).
+        /// </summary>
+        private string ConverterComandoParaTexto(Guia.EstadoInstrucao cmd, List<DetectionResult> yoloData, MidasResult midasData)
+        {
+            string nomeObstaculo = "obstáculo";
+            
+            // 1. Extrai o nome do objeto real classificado pela rede YOLO
+            if (yoloData != null && yoloData.Count > 0)
+            {
+                nomeObstaculo = yoloData[0].label.ToLower();
+            }
+            
+            // 2. Calcula a distância referencial em "Passos"
+            // MiDaS DangerScore aumenta rapidamente perto da colisão (0 a 10+). 
+            // Subtraímos de 12 para inverter o score (Maior Score = Menos Passos)
+            int passos = Mathf.Clamp(12 - (int)midasData.dangerScore, 1, 15);
+            
+            // Capitaliza o nome (ex: "carro" -> "Carro")
+            string capNome = char.ToUpper(nomeObstaculo[0]) + nomeObstaculo.Substring(1);
+
+            // 3. Monta frases de navegação imersivas explicando como evitar o acidente
+            switch (cmd)
+            {
+                case Guia.EstadoInstrucao.Parar:             
+                    return $"Pare agora! {capNome} a {passos} passos à sua frente.";
+                
+                case Guia.EstadoInstrucao.GirarEsquerda:    
+                    return $"Perigo! {capNome} bloqueando o caminho a {passos} passos. Gire totalmente para a esquerda para contornar.";
+                
+                case Guia.EstadoInstrucao.GirarDireita:     
+                    return $"Perigo! {capNome} bloqueando o caminho a {passos} passos. Gire totalmente para a direita para contornar a área.";
+                
+                case Guia.EstadoInstrucao.DesviarEsquerda:  
+                    return $"{capNome} identificado a {passos} passos de distância. Desvie para a esquerda para evitar uma colisão.";
+                
+                case Guia.EstadoInstrucao.DesviarDireita:   
+                    return $"{capNome} identificado a {passos} passos de distância. Desvie para a direita para manter a segurança.";
+                
+                // Reduz spam auditivo em locais seguros (Frente3 e 4 omitidos)
+                case Guia.EstadoInstrucao.Frente1:          return "Siga com extrema atenção.";
+                case Guia.EstadoInstrucao.Frente2:          return "Avançando.";
+                case Guia.EstadoInstrucao.Frente3:          return string.Empty;
+                case Guia.EstadoInstrucao.Frente4:          return string.Empty;
+                default:                                     return string.Empty;
+            }
+        }
+
+        private List<DetectionResult> GetDetectionsFromAI(Texture2D sourceTexture)
+        {
+            if (yoloAI != null && sourceTexture != null)
+            {
+                List<DetectionResult> deteccoes = yoloAI.ExecuteInference(sourceTexture);
+                if (deteccoes != null)
                     deteccoes.Sort((a, b) => (b.box.width * b.box.height).CompareTo(a.box.width * a.box.height));
-                }
-                return deteccoes;
+                return deteccoes ?? new List<DetectionResult>();
             }
             return new List<DetectionResult>();
         }
@@ -174,7 +265,12 @@ namespace LuckArkman.XR.Main
                 hudController.gameObject.SetActive(false);
             }
             
-            if (alertAudio != null)
+            // Notifica a conexão via TTS se disponível, senão usa AudioClip legado
+            if (voiceDirector != null)
+            {
+                voiceDirector.Enqueue("Conexão estabelecida. Rota iniciada!", VoicePriority.System);
+            }
+            else if (alertAudio != null)
             {
                 StartCoroutine(TocarSistemaDeAudioEmFila());
             }

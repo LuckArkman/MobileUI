@@ -19,11 +19,20 @@ namespace LuckArkman.XR.UI
         [SerializeField] private LuckArkman.XR.AI.YoloInferenceManager yoloAI;
         [SerializeField] private LuckArkman.XR.Safety.RiskCalculator riskCalculator;
         [SerializeField] private LuckArkman.XR.Safety.HeatmapManager heatmapManager;
+        
+        [Header("Novas Features (Sprint 7)")]
+        [SerializeField] private SmartphoneCameraSource smartphoneCamera;
+        [SerializeField] private LuckArkman.XR.Navigation.GoogleMapsNavigator mapsNavigator;
 
         private Label latencyLabel;
         private Label bitrateLabel;
         private Label arStatusLabel;
         private Label aiStatusLabel;
+
+        // UI Builder Elements - Feature 1 & 4
+        private Toggle toggleCameraSource;
+        private TextField destinationInput;
+        private Button navigateButton;
         
         private void OnEnable()
         {
@@ -41,10 +50,26 @@ namespace LuckArkman.XR.UI
             arStatusLabel = root.Q<Label>("ArStatusText");
             aiStatusLabel = root.Q<Label>("AiStatusText");
 
+            // Elementos de UI das novas features
+            toggleCameraSource = root.Q<Toggle>("ToggleCameraSource");
+            destinationInput = root.Q<TextField>("DestinationInput");
+            navigateButton = root.Q<Button>("NavigateButton");
+
             if (discoveryManager != null)
             {
                 discoveryManager.OnHeadsetFound -= UpdateDeviceList; 
                 discoveryManager.OnHeadsetFound += UpdateDeviceList;
+            }
+
+            // Bindings de Evento
+            if (toggleCameraSource != null)
+            {
+                toggleCameraSource.RegisterValueChangedCallback(evt => OnCameraToggleChanged(evt.newValue));
+            }
+
+            if (navigateButton != null && destinationInput != null)
+            {
+                navigateButton.clicked += OnNavigateClicked;
             }
         }
         
@@ -115,6 +140,46 @@ namespace LuckArkman.XR.UI
             }
             
             if (statusTag != null) statusTag.style.backgroundColor = new StyleColor(Color.yellow);
+        }
+
+        // ==========================================
+        // HANDLERS DAS NOVAS FEATURES (SPRINT 7)
+        // ==========================================
+
+        private void OnCameraToggleChanged(bool useSmartphoneCamera)
+        {
+            if (smartphoneCamera == null)
+            {
+                Debug.LogWarning("[MainHUD] Referência 'smartphoneCamera' não vinculada no Inspector.");
+                return;
+            }
+
+            if (useSmartphoneCamera)
+            {
+                smartphoneCamera.Activate();
+                if (statusLabel != null) statusLabel.text = "CÂMERA ATIVA";
+            }
+            else
+            {
+                smartphoneCamera.Deactivate();
+                if (statusLabel != null) statusLabel.text = "PROCURANDO ÓCULOS...";
+            }
+        }
+
+        private void OnNavigateClicked()
+        {
+            if (mapsNavigator == null)
+            {
+                Debug.LogWarning("[MainHUD] Referência 'mapsNavigator' não vinculada no Inspector.");
+                return;
+            }
+
+            string dest = destinationInput?.value;
+            if (!string.IsNullOrWhiteSpace(dest))
+            {
+                if (statusLabel != null) statusLabel.text = $"NAVEGANDO PARA: {dest.ToUpper()}";
+                mapsNavigator.StartNavigation(dest);
+            }
         }
     }
 }
