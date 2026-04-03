@@ -119,6 +119,66 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &12403025
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 12403028}
+  - component: {fileID: 12403027}
+  - component: {fileID: 12403026}
+  m_Layer: 0
+  m_Name: VoiceSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &12403026
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 12403025}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b438572a11fcb4c46865a1da66c2dfec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Voice.VoiceDirectorService
+  ttsEngine: {fileID: 12403027}
+--- !u!114 &12403027
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 12403025}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0578d08c905c2aa408a07d96456d4987, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Voice.SmallPrinceTTS
+  voicePitch: 1.3
+  voiceRate: 0.9
+--- !u!4 &12403028
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 12403025}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0, y: 0, z: -0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &49015590
 GameObject:
   m_ObjectHideFlags: 0
@@ -257,6 +317,8 @@ GameObject:
   - component: {fileID: 230591555}
   - component: {fileID: 230591554}
   - component: {fileID: 230591553}
+  - component: {fileID: 230591557}
+  - component: {fileID: 230591556}
   m_Layer: 0
   m_Name: XRLock_Core
   m_TagString: Untagged
@@ -294,11 +356,16 @@ MonoBehaviour:
   mjpegClient: {fileID: 0}
   actuatorClient: {fileID: 0}
   yoloAI: {fileID: 1650843377}
-  riskCalculator: {fileID: 2109167343}
+  midasAI: {fileID: 0}
+  decisionMatrix: {fileID: 0}
   heatmapManager: {fileID: 2109167342}
   hudController: {fileID: 1790322104}
   batteryOptimizer: {fileID: 230591553}
-  aiProcessInterval: 0.1
+  sistemaGuia: {fileID: 0}
+  voiceDirector: {fileID: 0}
+  smartphoneCamera: {fileID: 0}
+  alertAudio: {fileID: 0}
+  tutorialAudioClip: {fileID: 0}
 --- !u!4 &230591555
 Transform:
   m_ObjectHideFlags: 0
@@ -314,6 +381,32 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &230591556
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 230591552}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3b38d607b6f7c74fa2b582db4140310, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Optimization.BatteryOptimizer
+  targetFrameRateActive: 60
+  targetFrameRateIdle: 30
+--- !u!114 &230591557
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 230591552}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f8af6d9e47f75b4e9fcba98f07afcfc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Background.BackgroundServiceManager
 --- !u!1 &1558388360
 GameObject:
   m_ObjectHideFlags: 0
@@ -345,6 +438,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c514dfc62548b1a489b3e9d84928b4cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Networking.WifiDiscoveryManager
+  usarIpFixo: 0
+  ipFixo: 192.168.43.50
   discoveryPort: 8888
   broadcastMessage: XR_HEADSET_DISCOVERY
 --- !u!4 &1558388363
@@ -418,10 +513,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.AI.YoloInferenceManager
   modelAsset: {fileID: 0}
-  preProcessShader: {fileID: 0}
   confidenceThreshold: 0.5
-  targetWidth: 640
-  targetHeight: 640
+  iouThreshold: 0.45
 --- !u!4 &1650843378
 Transform:
   m_ObjectHideFlags: 0
@@ -437,6 +530,109 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1712515750
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1712515755}
+  - component: {fileID: 1712515754}
+  - component: {fileID: 1712515753}
+  - component: {fileID: 1712515752}
+  - component: {fileID: 1712515751}
+  m_Layer: 0
+  m_Name: XRLock_UI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1712515751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712515750}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: deafe591de1daa2479a44bfb80519e65, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.UI.SmartphoneCameraSource
+  useBackCamera: 1
+  targetWidth: 640
+  targetHeight: 480
+  targetFPS: 30
+--- !u!114 &1712515752
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712515750}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47d558869b6a6d6429cb33ef71d5fbf5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.UI.CameraBackground
+  mjpegClient: {fileID: 1558388364}
+--- !u!114 &1712515753
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712515750}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1344c3c82d62a2a41a3576d8abb8e3ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.RawImage
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Texture: {fileID: 0}
+  m_UVRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+--- !u!222 &1712515754
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712515750}
+  m_CullTransparentMesh: 1
+--- !u!224 &1712515755
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712515750}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1790322101
 GameObject:
   m_ObjectHideFlags: 0
@@ -511,6 +707,8 @@ MonoBehaviour:
   yoloAI: {fileID: 1650843377}
   riskCalculator: {fileID: 2109167343}
   heatmapManager: {fileID: 2109167342}
+  smartphoneCamera: {fileID: 0}
+  mapsNavigator: {fileID: 0}
 --- !u!1 &2109167341
 GameObject:
   m_ObjectHideFlags: 0
@@ -582,3 +780,5 @@ SceneRoots:
   - {fileID: 2109167344}
   - {fileID: 1650843378}
   - {fileID: 230591555}
+  - {fileID: 1712515755}
+  - {fileID: 12403028}
