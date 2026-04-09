@@ -1,104 +1,86 @@
 using UnityEngine;
+#if UNITY_ANDROID || UNITY_IOS
+using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.ARSubsystems;
+#endif
 
 namespace LuckArkman.XR.UI
 {
     /// <summary>
-    /// Provê a câmera traseira do smartphone como fonte de vídeo alternativa ao MJPEG.
+    /// Provê a câmera traseira do smartphone como fonte de vídeo alternativa.
     ///
-    /// Uso:
-    ///   Quando o óculos XR não está disponível, o usuário coloca o smartphone em um
-    ///   suporte/adaptador e usa a câmera traseira para identificar obstáculos.
-    ///   O MainSystemOrchestrator.GetActiveVideoSource() escolhe automaticamente
-    ///   entre esta câmera e o stream do óculos XR.
-    ///
-    /// Compatibilidade:
-    ///   Usa WebCamTexture (API nativa Unity), funciona em Android e iOS.
-    ///   Requer permissão CAMERA no AndroidManifest.xml (já declarada).
+    /// RESOLUÇÃO DO CONFLITO DE HARDWARE (Briga de Câmera):
+    /// O Android 14 mata o app se o ARCore (ARFoundation) e a WebCamTexture
+    /// tentarem assumir o hardware 'camera' simultaneamente.
+    /// Esta versão atualizada detecta se o ARCameraManager está presente na cena.
+    ///   - Se estiver: Extrai o frame (XRCpuImage) direto do ARCore (Zero conflito, performance máxima).
+    ///   - Se NÃO estiver: Usa o WebCamTexture padrão como fallback de segurança.
     /// </summary>
     public class SmartphoneCameraSource : MonoBehaviour
     {
-        [Header("Configuração")]
+        [Header("Configuração de Fallback (Apenas se ARCore estiver offline)")]
         [Tooltip("True = câmera traseira (recomendado para obstáculos). False = frontal.")]
         public bool useBackCamera = true;
-
-        [Tooltip("Largura do frame capturado. 640 é o tamanho do tensor YOLO/MiDaS.")]
         public int targetWidth = 640;
-
-        [Tooltip("Altura do frame capturado.")]
         public int targetHeight = 480;
-
-        [Tooltip("Taxa de quadros alvo para a WebCamTexture.")]
         public int targetFPS = 30;
 
         /// <summary>True quando a câmera está ativa e capturando frames.</summary>
         public bool IsActive { get; private set; }
 
-        /// <summary>
-        /// Frame atual em Texture2D, compatível com YoloInferenceManager e MidasInferenceManager.
-        /// Atualizado a cada frame que a WebCamTexture reporta novo dado (didUpdateThisFrame).
-        /// </summary>
+        /// <summary>Frame atual em Texture2D, exposto ao Yolo e MiDaS.</summary>
         public Texture2D CurrentFrame { get; private set; }
+
+#if UNITY_ANDROID || UNITY_IOS
+        private ARCameraManager _arCameraManager;
+#endif
 
         private WebCamTexture _webCamTexture;
         private RenderTexture _renderTexture;
+        private bool _usingARCoreProvider = false;
 
         // ─── API Pública ──────────────────────────────────────────────────
 
-        /// <summary>Ativa a câmera do smartphone e começa a capturar frames.</summary>
         public void Activate()
         {
-            if (IsActive)
+            if (IsActive) return;
+
+#if UNITY_ANDROID || UNITY_IOS
+            // Tenta encontrar o gerenciador de câmera do ARCore na cena
+            _arCameraManager = FindFirstObjectByType<ARCameraManager>();
+            
+            if (_arCameraManager != null)
             {
-                Debug.LogWarning("[SmartphoneCamera] Já está ativa. Ignorando Activate().");
+                Debug.Log("[SmartphoneCamera] ARCore detectado! Assumindo frames via XRCpuImage para evitar briga de hardware.");
+                _usingARCoreProvider = true;
+                _arCameraManager.frameReceived += OnARCameraFrameReceived;
+                IsActive = true;
                 return;
             }
+#endif
 
-            if (WebCamTexture.devices.Length == 0)
-            {
-                Debug.LogError("[SmartphoneCamera] Nenhuma câmera encontrada no dispositivo.");
-                return;
-            }
-
-            string deviceName = FindCameraDevice(useBackCamera);
-            if (deviceName == null)
-            {
-                Debug.LogError("[SmartphoneCamera] Câmera solicitada não encontrada. " +
-                               "Verifique permissão CAMERA no manifest.");
-                return;
-            }
-
-            // WebCamTexture é a API Unity para câmera do dispositivo.
-            _webCamTexture = new WebCamTexture(deviceName, targetWidth, targetHeight, targetFPS);
-            _webCamTexture.Play();
-
-            // RenderTexture intermediária para a conversão eficiente WebCam → Texture2D.
-            _renderTexture = new RenderTexture(targetWidth, targetHeight, 0, RenderTextureFormat.ARGB32);
-
-            // Texture2D que será exposta ao pipeline de IA.
-            CurrentFrame = new Texture2D(targetWidth, targetHeight, TextureFormat.RGB24, false);
-
-            IsActive = true;
-            Debug.Log($"[SmartphoneCamera] Câmera '{deviceName}' ativada " +
-                      $"({targetWidth}x{targetHeight} @ {targetFPS}fps).");
+            // Fallback para WebCamTexture (Se o ARCore não estiver na cena)
+            Debug.LogWarning("[SmartphoneCamera] ARCore NÃO detectado. Iniciando WebCamTexture local.");
+            _usingARCoreProvider = false;
+            StartWebCamTexture();
         }
 
-        /// <summary>Para a câmera e libera todos os recursos.</summary>
         public void Deactivate()
         {
             if (!IsActive) return;
+            IsActive = false;
 
-            if (_webCamTexture != null)
+#if UNITY_ANDROID || UNITY_IOS
+            if (_usingARCoreProvider && _arCameraManager != null)
             {
-                _webCamTexture.Stop();
-                Destroy(_webCamTexture);
-                _webCamTexture = null;
+                _arCameraManager.frameReceived -= OnARCameraFrameReceived;
+                _arCameraManager = null;
             }
+#endif
 
-            if (_renderTexture != null)
+            if (!_usingARCoreProvider)
             {
-                _renderTexture.Release();
-                Destroy(_renderTexture);
-                _renderTexture = null;
+                StopWebCamTexture();
             }
 
             if (CurrentFrame != null)
@@ -107,62 +89,97 @@ namespace LuckArkman.XR.UI
                 CurrentFrame = null;
             }
 
-            IsActive = false;
             Debug.Log("[SmartphoneCamera] Câmera desativada e recursos liberados.");
         }
 
-        // ─── Ciclo de Vida ────────────────────────────────────────────────
+        // ─── Lógica ARCore (Sem Conflito) ──────────────────────────────────
+
+#if UNITY_ANDROID || UNITY_IOS
+        private void OnARCameraFrameReceived(ARCameraFrameEventArgs args)
+        {
+            if (!IsActive || _arCameraManager == null) return;
+
+            // Extrai a imagem crua fornecida pelo ARCore que já tem o Lock do hardware
+            if (!_arCameraManager.TryAcquireLatestCpuImage(out XRCpuImage image))
+                return;
+
+            try
+            {
+                var format = TextureFormat.RGBA32;
+                if (CurrentFrame == null || CurrentFrame.width != image.width || CurrentFrame.height != image.height)
+                {
+                    CurrentFrame = new Texture2D(image.width, image.height, format, false);
+                }
+
+                // Configura a conversão para nossa Texture2D processável
+                var conversionParams = new XRCpuImage.ConversionParams
+                {
+                    inputRect = new RectInt(0, 0, image.width, image.height),
+                    outputDimensions = new Vector2Int(image.width, image.height),
+                    outputFormat = format,
+                    transformation = XRCpuImage.Transformation.None
+                };
+
+                // Executa a conversão dos bytes diretamente para a Textura do Unity
+                var rawTextureData = CurrentFrame.GetRawTextureData<byte>();
+                image.Convert(conversionParams, rawTextureData);
+                CurrentFrame.Apply();
+            }
+            finally
+            {
+                // IMPORTANTÍSSIMO: Evita vazamento de memória liberando a imagem nativa
+                image.Dispose();
+            }
+        }
+#endif
+
+        // ─── Lógica Fallback WebCamTexture ────────────────────────────────
+
+        private void StartWebCamTexture()
+        {
+            if (WebCamTexture.devices.Length == 0) return;
+
+            string deviceName = FindCameraDevice(useBackCamera);
+            if (deviceName == null) return;
+
+            _webCamTexture = new WebCamTexture(deviceName, targetWidth, targetHeight, targetFPS);
+            _webCamTexture.Play();
+
+            _renderTexture = new RenderTexture(targetWidth, targetHeight, 0, RenderTextureFormat.ARGB32);
+            CurrentFrame = new Texture2D(targetWidth, targetHeight, TextureFormat.RGB24, false);
+            IsActive = true;
+        }
+
+        private void StopWebCamTexture()
+        {
+            if (_webCamTexture != null)
+            {
+                _webCamTexture.Stop();
+                Destroy(_webCamTexture);
+                _webCamTexture = null;
+            }
+            if (_renderTexture != null)
+            {
+                _renderTexture.Release();
+                Destroy(_renderTexture);
+                _renderTexture = null;
+            }
+        }
 
         private void Update()
         {
-            if (!IsActive || _webCamTexture == null) return;
+            if (!IsActive || _usingARCoreProvider || _webCamTexture == null) return;
 
-            // Só atualiza a Texture2D quando a WebCamTexture reporta um novo frame.
-            // Evita trabalho desnecessário em frames onde a câmera não atualizou.
             if (!_webCamTexture.didUpdateThisFrame) return;
 
-            UpdateSnapshot();
-        }
-
-        private void OnDestroy()
-        {
-            Deactivate();
-        }
-
-        // ─── Internos ─────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Copia o frame atual da WebCamTexture para a Texture2D via RenderTexture.
-        /// Pipeline: WebCamTexture → Graphics.Blit → RenderTexture → ReadPixels → Texture2D
-        ///
-        /// Por que RenderTexture intermediária?
-        ///   - Graphics.Blit opera na GPU (mais eficiente que GetPixels/SetPixels na CPU).
-        ///   - ReadPixels transfere do RenderTexture para a RAM (necessário para Texture2D).
-        ///   - Apenas os frames com didUpdateThisFrame=true passam por este pipeline.
-        /// </summary>
-        private void UpdateSnapshot()
-        {
-            // Blit da WebCamTexture para a RenderTexture (operação GPU)
             Graphics.Blit(_webCamTexture, _renderTexture);
-
-            // Salva e muda o RenderTexture ativo para poder fazer ReadPixels
             RenderTexture previousActive = RenderTexture.active;
             RenderTexture.active = _renderTexture;
-
-            // ReadPixels copia do RenderTexture ativo para a Texture2D (CPU)
-            // false no último parâmetro = não recalcula mipmap (mais rápido)
             CurrentFrame.ReadPixels(new Rect(0, 0, targetWidth, targetHeight), 0, 0, false);
             CurrentFrame.Apply(false);
-
-            // Restaura o RenderTexture ativo anterior
             RenderTexture.active = previousActive;
         }
 
-        /// <summary>
-        /// Encontra o nome do dispositivo de câmera com a orientação solicitada.
-        /// Retorna o nome da câmera traseira se backFacing=true, frontal se false.
-        /// Faz fallback para qualquer câmera disponível se a orientação não for encontrada.
-        /// </summary>
         private string FindCameraDevice(bool backFacing)
         {
             WebCamDevice[] devices = WebCamTexture.devices;
@@ -170,24 +187,17 @@ namespace LuckArkman.XR.UI
 
             foreach (var device in devices)
             {
-                // isFrontFacing=true → câmera frontal; false → traseira
                 bool isFront = device.isFrontFacing;
-                bool isDesiredBack = backFacing && !isFront;
-                bool isDesiredFront = !backFacing && isFront;
-
-                if (isDesiredBack || isDesiredFront)
+                if ((backFacing && !isFront) || (!backFacing && isFront))
                     return device.name;
-
-                // Guarda a primeira disponível como fallback
-                if (fallback == null)
-                    fallback = device.name;
+                if (fallback == null) fallback = device.name;
             }
-
-            // Se não encontrou o tipo desejado, usa qualquer câmera disponível
-            if (fallback != null)
-                Debug.LogWarning("[SmartphoneCamera] Câmera solicitada não encontrada. " +
-                                 $"Usando fallback: '{fallback}'.");
             return fallback;
+        }
+
+        private void OnDestroy()
+        {
+            Deactivate();
         }
     }
 }
