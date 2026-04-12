@@ -57,10 +57,16 @@ public class MidasForegroundService extends Service {
         // Android 14 (API 34) exige que o tipo do serviço seja declarado
         // tanto no manifest quanto na chamada startForeground().
         if (Build.VERSION.SDK_INT >= 34) {
-            // FOREGROUND_SERVICE_TYPE_LOCATION = 8
-            // Usado porque o app acessa localização GPS em tempo real.
-            startForeground(NOTIFICATION_ID, notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            // Verifica se a permissão foi concedida. Se não, usa o tipo padrão para evitar crash.
+            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) 
+                == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                startForeground(NOTIFICATION_ID, notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            } else {
+                // Fallback de segurança: inicia sem o tipo restrito para evitar o crash imediato.
+                // O sistema pode encerrar o serviço depois, mas o app não fecha na hora.
+                startForeground(NOTIFICATION_ID, notification);
+            }
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }

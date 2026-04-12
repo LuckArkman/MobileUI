@@ -45,25 +45,45 @@ namespace LuckArkman.XR.Background
         // CICLO DE VIDA
         // ================================================================
 
-        private void Start()
+        private void Awake()
         {
-            // --- Configurações que funcionam em TODAS as plataformas ---
-
-            // Impede que o sistema operacional bloqueie a tela automaticamente.
-            Screen.sleepTimeout = SleepTimeout.NeverSleep;
-
-            // Permite que as corrotinas e o Update continuem rodando
-            // quando o app perde o foco (ex: tela bloqueada, notificação).
-            Application.runInBackground = true;
-
-            // --- Bloco exclusivo do Android ---
 #if UNITY_ANDROID
-            // Verificação de segurança: garante que estamos rodando no Android real,
-            // não em um build para outra plataforma que inclua o símbolo UNITY_ANDROID.
             if (Application.platform == RuntimePlatform.Android)
             {
-                InitializeAndroidBackground();
+                // Requisita a permissão IMEDIATAMENTE no despertar do app
+                if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.FineLocation))
+                {
+                    UnityEngine.Android.Permission.RequestUserPermission(UnityEngine.Android.Permission.FineLocation);
+                }
             }
+#endif
+        }
+
+        private void Start()
+        {
+            Screen.sleepTimeout = SleepTimeout.NeverSleep;
+            Application.runInBackground = true;
+
+#if UNITY_ANDROID
+            if (Application.platform == RuntimePlatform.Android)
+            {
+                StartCoroutine(WaitAndInitializeBackground());
+            }
+#endif
+        }
+
+        private System.Collections.IEnumerator WaitAndInitializeBackground()
+        {
+#if UNITY_ANDROID
+            // Aguarda o usuário responder ao diálogo que surgiu no Awake
+            while (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.FineLocation))
+            {
+                yield return new WaitForSeconds(1.0f);
+            }
+
+            InitializeAndroidBackground();
+#else
+            yield break;
 #endif
         }
 

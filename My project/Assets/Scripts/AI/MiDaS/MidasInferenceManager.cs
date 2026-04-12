@@ -55,6 +55,14 @@ namespace LuckArkman.XR.AI
 
             // 4. PEGA O RESULTADO
             Tensor<float> outputTensor = engineWorker.PeekOutput() as Tensor<float>;
+            
+            // NOVO: Proteção contra erro de cache da GPU
+            if (outputTensor == null) 
+            {
+                inputTensor.Dispose();
+                return result;
+            }
+
             float[] depthArray = outputTensor.DownloadToArray();
 
             // 5. LIBERA A MEMÓRIA DA IMAGEM

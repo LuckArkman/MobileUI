@@ -39,17 +39,60 @@ namespace LuckArkman.XR.AI
 
         private void Start()
         {
-            if (modelAsset != null)
+            if (modelAsset == null)
+            {
+                Debug.LogError("[YoloAI] ERRO CRÍTICO: ModelAsset não está atribuído no Inspector! " +
+                               "Arraste o arquivo .sentis para o campo 'Model Asset' do YoloInferenceManager.");
+                return;
+            }
+
+            StartCoroutine(InitializeWorkerDelayed());
+        }
+
+        /// <summary>
+        /// Inicializa o Worker de IA com um frame de atraso.
+        /// Isso garante que o contexto gráfico do Android (OpenGLES/Vulkan)
+        /// já esteja 100% inicializado antes de tentarmos alocar memória na GPU.
+        /// Sem este atraso, drivers Mali e Adreno podem causar crash silencioso.
+        /// </summary>
+        private System.Collections.IEnumerator InitializeWorkerDelayed()
+        {
+            // Aguarda 2 frames para garantir que o contexto gráfico está estável.
+            yield return null;
+            yield return null;
+
+            try
             {
                 model = ModelLoader.Load(modelAsset);
-                worker = new Worker(model, BackendType.GPUCompute); 
-                // Debug.Log("[YoloAI] Cérebro YOLOv8 carregado na GPU com sucesso!"); // -> COMENTADO
+
+                // Tenta a GPU primeiro (melhor performance em mobile)
+                try
+                {
+                    worker = new Worker(model, BackendType.GPUCompute);
+                    Debug.Log("[YoloAI] Worker inicializado com sucesso: Backend GPU (Compute).");
+                }
+                catch (System.Exception gpuEx)
+                {
+                    // Fallback para CPU se o driver de GPU não suportar Compute Shaders
+                    Debug.LogWarning($"[YoloAI] GPU Compute indisponível ({gpuEx.Message}). " +
+                                     "Usando CPU como fallback. Performance reduzida.");
+                    worker = new Worker(model, BackendType.CPU);
+                    Debug.Log("[YoloAI] Worker inicializado com fallback: Backend CPU.");
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[YoloAI] Falha CRÍTICA ao carregar modelo: {e.Message}. " +
+                               "Verifique se o arquivo .sentis é válido e compatível com esta versão do Inference Engine.");
             }
         }
 
         public List<DetectionResult> ExecuteInference(Texture2D sourceTexture)
         {
             List<DetectionResult> results = new List<DetectionResult>();
+
+            // Guarda de segurança: worker pode ser null se a GPU ainda está inicializando
+            // ou se o modelo não foi atribuído. Retorna lista vazia sem crash.
             if (worker == null || sourceTexture == null) return results;
 
             TensorShape shape = new TensorShape(1, 3, 640, 640);
@@ -61,6 +104,15 @@ namespace LuckArkman.XR.AI
             worker.Schedule(inputTensor);
 
             Tensor<float> outputTensor = worker.PeekOutput() as Tensor<float>;
+            
+            // NOVO: Verificação de segurança (Erro de Cache/GPU)
+            if (outputTensor == null) 
+            {
+                Debug.LogWarning("[YoloAI] Falha na recuperação do tensor da GPU. O cache pode estar instável.");
+                inputTensor.Dispose();
+                return results;
+            }
+
             float[] outputData = outputTensor.DownloadToArray();
 
             results = ParseYoloV8(outputData, sourceTexture.width, sourceTexture.height);
