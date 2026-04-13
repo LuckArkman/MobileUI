@@ -1905,7 +1905,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.Guia
   spatialAudio: {fileID: 462482251}
-  usarTTS_InfantilEspanhol: 1
+  usarGeminiAudio: 1
+  apiKey: AIzaSyBwrf3zdf6Kwm10SDTPUdQxx8Tvl0J3rTY
   voiceAudioSource: {fileID: 462482250}
   voiceMoveLeft: {fileID: 0}
   voiceMoveRight: {fileID: 0}
@@ -2709,7 +2710,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.Guia
   spatialAudio: {fileID: 462482251}
-  usarTTS_InfantilEspanhol: 1
+  usarGeminiAudio: 1
+  apiKey: AIzaSyBwrf3zdf6Kwm10SDTPUdQxx8Tvl0J3rTY
   voiceAudioSource: {fileID: 462482250}
   voiceMoveLeft: {fileID: 8300000, guid: 4f28546b7ecde174e925f78718182f7c, type: 3}
   voiceMoveRight: {fileID: 8300000, guid: a46fd67368811be4294ba95f79d749a5, type: 3}
@@ -12674,7 +12676,7 @@ Camera:
     serializedVersion: 2
     m_Bits: 4294967295
   m_RenderingPath: -1
-  m_TargetTexture: {fileID: 0}
+  m_TargetTexture: {fileID: 8600000, guid: b68c172aa2fa43343b9604b621c48d79, type: 2}
   m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
