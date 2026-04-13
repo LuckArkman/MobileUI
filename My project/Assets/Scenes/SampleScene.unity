@@ -1794,6 +1794,8 @@ GameObject:
   - component: {fileID: 310325648}
   - component: {fileID: 310325647}
   - component: {fileID: 310325646}
+  - component: {fileID: 310325651}
+  - component: {fileID: 310325650}
   m_Layer: 0
   m_Name: Navigation_System
   m_TagString: Untagged
@@ -1817,8 +1819,9 @@ MonoBehaviour:
   portaControle: 81
   txtDistanciaUI: {fileID: 1895155484}
   uiManager: {fileID: 602488420}
-  raioDeCaptura: 4
+  raioDeCapturaBase: 4
   anguloDesejadoGPS: 90
+  isNavigating: 0
   anguloRelativoAoDestino: 0
 --- !u!114 &310325647
 MonoBehaviour:
@@ -1865,6 +1868,59 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &310325650
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 310325645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 457c605a172956b47b4c7da17316e8ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.MainSystemOrchestrator
+  discoveryManager: {fileID: 1571486779}
+  mjpegClient: {fileID: 1571486780}
+  actuatorClient: {fileID: 1571486782}
+  yoloAI: {fileID: 608830359}
+  midasAI: {fileID: 608830364}
+  decisionMatrix: {fileID: 608830363}
+  heatmapManager: {fileID: 608830357}
+  hudController: {fileID: 82645042}
+  batteryOptimizer: {fileID: 1323550136}
+  sistemaGuia: {fileID: 462482248}
+  alertAudio: {fileID: 462482250}
+  tutorialAudioClip: {fileID: 0}
+--- !u!114 &310325651
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 310325645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a0b643f3a76a9344844f6afc730830a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.Guia
+  spatialAudio: {fileID: 462482251}
+  usarTTS_InfantilEspanhol: 1
+  voiceAudioSource: {fileID: 462482250}
+  voiceMoveLeft: {fileID: 0}
+  voiceMoveRight: {fileID: 0}
+  voiceTurnLeft: {fileID: 0}
+  voiceTurnRight: {fileID: 0}
+  voiceStop: {fileID: 0}
+  voiceMoveDoubleLeft: {fileID: 0}
+  voiceMoveDoubleRight: {fileID: 0}
+  voiceFrente1: {fileID: 0}
+  voiceFrente2: {fileID: 0}
+  voiceFrente3: {fileID: 0}
+  voiceFrente4: {fileID: 0}
+  tempoEsperaParar: 1
+  tempoEsperaAcao: 2
+  tempoEsperaContinuar: 3.5
 --- !u!114 &331264286 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6605111590819766852, guid: 069266f272f67eb43b7e9423a4e669d2, type: 3}
@@ -2653,6 +2709,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.Guia
   spatialAudio: {fileID: 462482251}
+  usarTTS_InfantilEspanhol: 1
   voiceAudioSource: {fileID: 462482250}
   voiceMoveLeft: {fileID: 8300000, guid: 4f28546b7ecde174e925f78718182f7c, type: 3}
   voiceMoveRight: {fileID: 8300000, guid: a46fd67368811be4294ba95f79d749a5, type: 3}
@@ -3311,7 +3368,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &602488416
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9527,6 +9584,7 @@ GameObject:
   - component: {fileID: 1571486781}
   - component: {fileID: 1571486780}
   - component: {fileID: 1571486779}
+  - component: {fileID: 1571486784}
   m_Layer: 0
   m_Name: Network_Manager
   m_TagString: Untagged
@@ -9603,6 +9661,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1571486784
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1571486778}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc7aecf6ce287b240b7ab709935d14a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.UI.HudController
+  discoveryManager: {fileID: 1571486779}
+  mjpegClient: {fileID: 1571486780}
+  latencyMonitor: {fileID: 1571486781}
+  yoloAI: {fileID: 608830359}
+  riskCalculator: {fileID: 0}
+  heatmapManager: {fileID: 608830357}
 --- !u!1 &1706167579
 GameObject:
   m_ObjectHideFlags: 0

@@ -113,10 +113,14 @@ namespace LuckArkman.XR.Main
                         mjpegClient.streamTexture.width
                     );
                     
+                    // Conversão de Risco para Passos: Mapeia o quão bloqueado o usuário está
+                    // Se Danger Score é 8+ -> a 1 passo de bater. Se é 2 -> a uns 6 passos de distância.
+                    int passosCalculados = Mathf.Max(1, 8 - Mathf.RoundToInt(ultimoMidasData.dangerScore));
+                    
                     if (!isSystemAudioPlaying)
                     {
-                        // 1. Envia a ordem para a boca falar
-                        sistemaGuia.ExecutarComando(comandoFinal);
+                        // 1. Envia a ordem para a boca falar informando os passos
+                        sistemaGuia.ExecutarComando(comandoFinal, passosCalculados);
 
                         // 2. DESCANSO COGNITIVO E BATERIA
                         bool isManobraEvasiva = 

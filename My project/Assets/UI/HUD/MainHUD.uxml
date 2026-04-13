@@ -24,7 +24,10 @@
                 <ui:Label name="DiagnosticFPS" text="FPS: --" style="color: rgba(255, 255, 255, 0.4); font-size: 16px;"/>
                 <ui:Label name="DiagnosticMem" text="MEM: --" style="color: rgba(255, 255, 255, 0.4); font-size: 16px;"/>
             </ui:VisualElement>
-            <ui:Label text="Conexões Disponíveis" style="color: rgba(255, 255, 255, 0.5); font-size: 16px; margin-bottom: 10px;"/>
+            <ui:VisualElement style="flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 10px; width: 512px;">
+                <ui:Label text="Conexões Disponíveis" style="color: rgba(255, 255, 255, 0.5); font-size: 16px;"/>
+                <ui:Button name="BtnHotspot" text="ROTEAR WI-FI" class="control-btn" style="height: 35px; width: 140px; font-size: 14px; background-color: rgb(234, 179, 8); color: white; -unity-font-style: bold; border-width: 0px; border-radius: 5px;"/>
+            </ui:VisualElement>
             <ui:ScrollView name="DeviceList" class="device-list">
                 <ui:VisualElement class="device-item" style="height: 83px; width: 512px;">
                     <ui:Label text="Oculus Quest 3" class="device-name" style="font-size: 24px;"/>

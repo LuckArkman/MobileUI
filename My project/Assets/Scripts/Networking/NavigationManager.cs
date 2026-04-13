@@ -98,7 +98,8 @@ namespace LuckArkman.XR.Navigation
             // 4. ATUALIZA A UI
             if (txtDistanciaUI != null) 
             {
-                txtDistanciaUI.text = $"{distanciaAteAtual:F1} m";
+                int passosNavegacao = Mathf.Max(1, Mathf.RoundToInt(distanciaAteAtual / 0.75f));
+                txtDistanciaUI.text = $"{passosNavegacao} passos";
             }
 
             // 5. CÁLCULO DE BÚSSOLA COM HISTERESE

@@ -24,6 +24,7 @@ namespace LuckArkman.XR.UI
         private Label bitrateLabel;
         private Label arStatusLabel;
         private Label aiStatusLabel;
+        private Button btnHotspot;
         
         private void OnEnable()
         {
@@ -46,6 +47,50 @@ namespace LuckArkman.XR.UI
                 discoveryManager.OnHeadsetFound -= UpdateDeviceList; 
                 discoveryManager.OnHeadsetFound += UpdateDeviceList;
             }
+
+            btnHotspot = root.Q<Button>("BtnHotspot");
+            if (btnHotspot != null)
+            {
+                btnHotspot.clicked += OpenHotspotSettings;
+            }
+        }
+
+        private void OpenHotspotSettings()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
+            {
+                using (AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                {
+                    using (AndroidJavaObject currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
+                    {
+                        try 
+                        {
+                            using (AndroidJavaObject intent = new AndroidJavaObject("android.content.Intent"))
+                            {
+                                intent.Call<AndroidJavaObject>("setClassName", "com.android.settings", "com.android.settings.TetherSettings");
+                                currentActivity.Call("startActivity", intent);
+                            }
+                        }
+                        catch 
+                        {
+                            // Fallback para a tela principal de configurações Wireless
+                            using (AndroidJavaObject fallbackIntent = new AndroidJavaObject("android.content.Intent"))
+                            {
+                                fallbackIntent.Call<AndroidJavaObject>("setAction", "android.settings.WIRELESS_SETTINGS");
+                                currentActivity.Call("startActivity", fallbackIntent);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[Hotspot] Falha geral ao invocar a tela de tethering: {e.Message}");
+            }
+#else
+            Debug.Log("[Hotspot] O roteamento Wi-Fi interno pelo app só evoca a tela nativa no dispositivo Android.");
+#endif
         }
         
         private void Update()
