@@ -18,6 +18,12 @@ namespace LuckArkman.XR.Main
         public bool usarGeminiAudio = true;
         public string apiKey = "AIzaSyBwrf3zdf6Kwm10SDTPUdQxx8Tvl0J3rTY";
 
+        [Header("Generative AI: LLaMA (Ollama Docker Notebook)")]
+        [Tooltip("Ative para usar o modelo LLaMA local no seu notebook conectado no roteador do celular.")]
+        public bool usarLlamaText = false;
+        public string llamaEndpointUrl = "http://192.168.43.10:11434/api/generate";
+        public string llamaModelName = "llama3";
+
         [Header("Sistema de Voz Guia (Fallback Físico)")]
         public AudioSource voiceAudioSource;
         
@@ -60,6 +66,10 @@ namespace LuckArkman.XR.Main
         [System.Serializable] private class GeminiResponsePart { public GeminiInlineData inlineData; }
         [System.Serializable] private class GeminiInlineData { public string mimeType; public string data; }
 
+        // Estrutura para Ollama (LLaMA via Docker)
+        [System.Serializable] private class OllamaRequest { public string model; public string prompt; public bool stream; }
+        [System.Serializable] private class OllamaResponse { public string response; public bool done; }
+
         private void Start()
         {
             if (voiceAudioSource == null)
@@ -69,60 +79,56 @@ namespace LuckArkman.XR.Main
             }
         }
 
-        public void ExecutarComando(EstadoInstrucao comandoDecidido, int passosObjeto = 0)
+        public void ExecutarComando(EstadoInstrucao comandoDecidido, int passosObjeto = 0, string descricaoAmbiente = "")
         {
             if (Time.time >= proximoTempoDeFala)
             {
                 if (comandoDecidido != instrucaoAnterior)
                 {
-                    TocarComandoDeVoz(comandoDecidido, passosObjeto);
+                    TocarComandoDeVoz(comandoDecidido, passosObjeto, descricaoAmbiente);
                     instrucaoAnterior = comandoDecidido;
                 }
             }
         }
 
-        private void TocarComandoDeVoz(EstadoInstrucao comando, int passosObjeto = 0)
+        private void TocarComandoDeVoz(EstadoInstrucao comando, int passosObjeto = 0, string descricaoAmbiente = "")
         {
             float tempoDesteComando = tempoEsperaAcao;
             if (spatialAudio != null) spatialAudio.AjustarDirecaoDoSom(comando);
 
             // ===============================================
-            // LÓGICA 1: GEMINI 2.5 FLASH NATIVE AUDIO
+            // LÓGICA 0: LLaMA LOCAL (Ollama no Notebook)
+            // ===============================================
+            if (usarLlamaText)
+            {
+                string textoPassosLlama = (passosObjeto == 1) ? "1 paso" : $"{passosObjeto} pasos";
+                if (passosObjeto == 0) textoPassosLlama = "unos pasos";
+
+                string fraseContexto = $"O usuário com deficiência visual está caminhando. A IA localizou um risco {textoPassosLlama} e decidiu: '{comando}'. Aja como uma inteligência guia. Escreva apenas 1 frase curtíssima em espanhol alertando ele ou guiando-o.";
+                StartCoroutine(ProcessarEReproduzirLlama(fraseContexto, comando, tempoDesteComando));
+                proximoTempoDeFala = Time.time + tempoDesteComando;
+                return;
+            }
+
+            // ===============================================
+            // LÓGICA 1: GEMINI 2.5 FLASH NATIVE AUDIO DIALOG
             // ===============================================
             if (usarGeminiAudio)
             {
-                string fraseEspanhol = "";
-                string textoPassos = (passosObjeto == 1) ? "1 paso" : $"{passosObjeto} pasos";
-                if (passosObjeto == 0) textoPassos = "unos pasos";
-
-                switch (comando)
+                if (!string.IsNullOrEmpty(descricaoAmbiente))
                 {
-                    case EstadoInstrucao.Parar: fraseEspanhol = "¡Cuidado! Detente, por favor."; tempoDesteComando = tempoEsperaParar; break;
-                    case EstadoInstrucao.GirarDireita: fraseEspanhol = "Gira a la derecha."; break;
-                    case EstadoInstrucao.GirarEsquerda: fraseEspanhol = "Gira a la izquierda."; break;
-                    case EstadoInstrucao.DesviarDireita: fraseEspanhol = $"Obstáculo a {textoPassos}, vamos a la derecha."; break;
-                    case EstadoInstrucao.DesviarEsquerda: fraseEspanhol = $"Obstáculo a {textoPassos}, vamos a la izquierda."; break;
-                    case EstadoInstrucao.DesviarDuploDireita: fraseEspanhol = $"Atención a {textoPassos}, doble paso a la derecha."; break;
-                    case EstadoInstrucao.DesviarDuploEsquerda: fraseEspanhol = $"Atención a {textoPassos}, doble paso a la izquierda."; break;
-                    case EstadoInstrucao.Frente1: fraseEspanhol = "El camino está libre. Sigamos explorando."; tempoDesteComando = tempoEsperaContinuar; break;
-                    case EstadoInstrucao.Frente2: 
-                    case EstadoInstrucao.Frente3: 
-                    case EstadoInstrucao.Frente4: 
-                        fraseEspanhol = "Podemos seguir adelante."; tempoDesteComando = tempoEsperaContinuar; break;
-                }
-
-                if (!string.IsNullOrEmpty(fraseEspanhol))
-                {
-                    StartCoroutine(ProcessarEReproduzirGeminiTTS(fraseEspanhol));
+                    StartCoroutine(ProcessarEReproduzirGeminiTTS(descricaoAmbiente, comando, tempoDesteComando));
                     proximoTempoDeFala = Time.time + tempoDesteComando;
                 }
                 return; 
             }
 
-            // ===============================================
-            // LÓGICA 2: ARQUIVOS DE ÁUDIO LEGADOS (FALLBACK)
-            // ===============================================
-            if (voiceAudioSource == null || voiceAudioSource.isPlaying) return;
+            ExecutarAudioFallback(comando, tempoDesteComando);
+        }
+
+        private void ExecutarAudioFallback(EstadoInstrucao comando, float tempoDesteComando)
+        {
+            if (spatialAudio == null || spatialAudio.voiceAudioSource == null || spatialAudio.voiceAudioSource.isPlaying) return;
 
             AudioClip clipParaTocar = null;
 
@@ -143,19 +149,19 @@ namespace LuckArkman.XR.Main
 
             if (clipParaTocar != null)
             {
-                voiceAudioSource.clip = clipParaTocar;
-                voiceAudioSource.Play();
+                spatialAudio.voiceAudioSource.clip = clipParaTocar;
+                spatialAudio.voiceAudioSource.Play();
                 proximoTempoDeFala = Time.time + tempoDesteComando;
             }
         }
 
-        private IEnumerator ProcessarEReproduzirGeminiTTS(string fraseAviso)
+        private IEnumerator ProcessarEReproduzirGeminiTTS(string descricaoDaCenaRadar, EstadoInstrucao comando, float tempoDesteComando)
         {
-            // Endpoint Oficial para Gemini 2.5 Flash Native Audio Dialog 
+            // O modelo Gemini Flash Live é forçado especificamente quando há falha do standard no Audio Dialog
             string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
-            // O Contexto do Pequeno Príncipe forçando a IA a atuar e cuspir apenas áudio sem explicações de chat
-            string promptPersona = $"Lee la siguiente instrucción del sistema en voz alta. Utiliza un tono infantil, dulce y tranquilo. Comportate como el personaje de un niño guiando a alguien. No añadas introducciones ni conversaciones extra, solo lee estrictamente la instrucción: \"{fraseAviso}\"";
+            // O Contexto modificado força a IA a olhar para a cena descrita e formular a voz baseada no ambiente
+            string promptPersona = $"Genera obligatoriamente tu respuesta como una pista de audio (Native Audio) descriptiva. Eres un perro guía y debes narrar este escenario al ciego basándote EN LOS DATOS DEL RADAR a continuación y la acción de proteger '{comando}'. Datos del Radar actual: '{descricaoDaCenaRadar}'. NO retornes texto, usa la modalidad de audio. Sé muy conciso y directo en una sola frase.";
 
             GeminiRequest reqData = new GeminiRequest
             {
@@ -189,7 +195,15 @@ namespace LuckArkman.XR.Main
 
                 if (webReq.result != UnityWebRequest.Result.Success)
                 {
-                    Debug.LogError($"[Gemini 2.5 Audio] Falha na síntese cognitiva: {webReq.error} - {webReq.downloadHandler.text}");
+                    Debug.LogWarning($"[Gemini 2.5 Audio] Limite da API ou falha de rede: {webReq.error}");
+                    
+                    if (webReq.responseCode == 429)
+                    {
+                        usarGeminiAudio = false;
+                        Debug.LogWarning("[Gemini 2.5 Audio] Quota de requisições gratuitas excedida (429). A IA generativa ficará adormecida nesta sessão, recorrendo aos clipes físicos locais.");
+                    }
+                    
+                    ExecutarAudioFallback(comando, tempoDesteComando);
                 }
                 else
                 {
@@ -243,17 +257,79 @@ namespace LuckArkman.XR.Main
                                     AudioClip downloadedClip = DownloadHandlerAudioClip.GetContent(audioReq);
                                     if (downloadedClip != null)
                                     {
-                                        voiceAudioSource.clip = downloadedClip;
-                                        voiceAudioSource.Play();
-                                        Debug.Log($"[Gemini 2.5 Native Audio | Puck Voice]: '{fraseAviso}'");
+                                        if (spatialAudio != null && spatialAudio.voiceAudioSource != null)
+                                        {
+                                            spatialAudio.voiceAudioSource.clip = downloadedClip;
+                                            spatialAudio.voiceAudioSource.Play();
+                                        }
+                                        Debug.Log($"[Gemini 2.5 Native Audio Dialog]: Som reproduzido descrevendo a cena no áudio 3D.");
                                     }
                                 }
                                 else
                                 {
                                     Debug.LogError($"[Cloud TTS] Erro ao instanciar buffer gerado: {audioReq.error}");
+                                    ExecutarAudioFallback(comando, tempoDesteComando);
                                 }
                             }
                         }
+                        else
+                        {
+                            ExecutarAudioFallback(comando, tempoDesteComando);
+                        }
+                    }
+                    else
+                    {
+                        ExecutarAudioFallback(comando, tempoDesteComando);
+                    }
+                }
+            }
+        }
+
+        private IEnumerator ProcessarEReproduzirLlama(string promptDeComando, EstadoInstrucao comando, float tempoDesteComando)
+        {
+            OllamaRequest reqData = new OllamaRequest
+            {
+                model = llamaModelName,
+                prompt = promptDeComando,
+                stream = false
+            };
+
+            string jsonData = JsonUtility.ToJson(reqData);
+
+            using (UnityWebRequest webReq = new UnityWebRequest(llamaEndpointUrl, "POST"))
+            {
+                byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
+                webReq.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                webReq.downloadHandler = new DownloadHandlerBuffer();
+                webReq.SetRequestHeader("Content-Type", "application/json");
+
+                // Timeout um pouco maior pois LLMs rodando no notebook podem demorar uns respiros a mais que a nuvem
+                webReq.timeout = 6;
+
+                yield return webReq.SendWebRequest();
+
+                if (webReq.result != UnityWebRequest.Result.Success)
+                {
+                    Debug.LogWarning($"[LLaMA Docker] Falha na rede do Hotspot: {webReq.error}");
+                    // Fallback imediato se o notebook travar ou o Docker não estiver escutando
+                    usarLlamaText = false;
+                    ExecutarAudioFallback(comando, tempoDesteComando);
+                }
+                else
+                {
+                    try
+                    {
+                        OllamaResponse resData = JsonUtility.FromJson<OllamaResponse>(webReq.downloadHandler.text);
+                        Debug.Log($"[LLaMA 3 | Notebook]: '{resData.response}'");
+                        
+                        // NOTA: Como o LLaMA é puro texto, usamos o sistema local físico de voz
+                        // Simultaneamente para não travar o usuário enquanto a IA não possui um módulo TTS.
+                        ExecutarAudioFallback(comando, tempoDesteComando);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogError("[LLaMA Docker] Erro ao deserializar o JSON do Ollama: " + ex.Message);
+                        ExecutarAudioFallback(comando, tempoDesteComando);
                     }
                 }
             }

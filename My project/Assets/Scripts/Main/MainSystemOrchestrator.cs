@@ -119,8 +119,15 @@ namespace LuckArkman.XR.Main
                     
                     if (!isSystemAudioPlaying)
                     {
+                        // Cena descritiva gerada a partir dos dados do Radar MiDaS e Semântica YOLO
+                        string descricaoAmbiente = $"Frente: {ultimoMidasData.dangerScore:F1}/10 | Esq: {ultimoMidasData.leftZoneDanger:F1}/10 | Dir: {ultimoMidasData.rightZoneDanger:F1}/10.";
+                        if (ultimoYoloData != null && ultimoYoloData.Count > 0)
+                        {
+                            descricaoAmbiente += $" Há os seguintes objetos em volta: {ultimoYoloData[0].label}.";
+                        }
+                        
                         // 1. Envia a ordem para a boca falar informando os passos
-                        sistemaGuia.ExecutarComando(comandoFinal, passosCalculados);
+                        sistemaGuia.ExecutarComando(comandoFinal, passosCalculados, descricaoAmbiente);
 
                         // 2. DESCANSO COGNITIVO E BATERIA
                         bool isManobraEvasiva = 
