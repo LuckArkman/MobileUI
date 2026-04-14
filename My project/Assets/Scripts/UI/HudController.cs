@@ -161,5 +161,13 @@ namespace LuckArkman.XR.UI
             
             if (statusTag != null) statusTag.style.backgroundColor = new StyleColor(Color.yellow);
         }
+
+        public void SetVisibility(bool isVisible)
+        {
+            if (root != null)
+            {
+                root.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
     }
 }

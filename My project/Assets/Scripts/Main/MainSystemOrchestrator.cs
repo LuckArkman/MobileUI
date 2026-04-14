@@ -172,10 +172,10 @@ namespace LuckArkman.XR.Main
         {
             SetState(SystemState.Active);
             
-            // NOVO: Desliga o HUD assim que conecta!
+            // NOVO: Desliga apenas visualmente o HUD assim que conecta!
             if (hudController != null)
             {
-                hudController.gameObject.SetActive(false);
+                hudController.SetVisibility(false);
             }
             
             if (alertAudio != null)
@@ -205,10 +205,10 @@ namespace LuckArkman.XR.Main
         {
             SetState(SystemState.Searching);
             
-            // NOVO: Religa o HUD se a conexão cair
+            // NOVO: Religa visualmente o HUD se a conexão cair
             if (hudController != null)
             {
-                hudController.gameObject.SetActive(true);
+                hudController.SetVisibility(true);
             }
             
             if (discoveryManager != null) discoveryManager.StartDiscovery();
