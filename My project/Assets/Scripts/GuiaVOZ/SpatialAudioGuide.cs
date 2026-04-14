@@ -20,6 +20,25 @@ namespace LuckArkman.XR.Main
         // Gerenciado aqui para garantir Destroy correto antes de domain reload.
         private AudioClip _clipPiperAtual = null;
 
+        // FIX: Inicializa o AudioSource no Awake (antes do Start de qualquer outro script)
+        // Garante que o AudioSource esteja pronto mesmo se outro script chamar
+        // ReproduziirClipPiper() logo no primeiro frame.
+        private void Awake()
+        {
+            if (voiceAudioSource == null)
+                voiceAudioSource = GetComponent<AudioSource>();
+
+            // Se ainda for null, cria um no mesmo GameObject
+            if (voiceAudioSource == null)
+            {
+                voiceAudioSource = gameObject.AddComponent<AudioSource>();
+                Debug.LogWarning("[SpatialAudio] AudioSource não encontrado no Inspector — criado automaticamente.");
+            }
+
+            voiceAudioSource.spatialBlend = 0f;
+            voiceAudioSource.playOnAwake  = false;
+        }
+
         private void Start()
         {
             if (voiceAudioSource == null)
@@ -27,7 +46,6 @@ namespace LuckArkman.XR.Main
 
             if (voiceAudioSource != null)
             {
-                // Garante pan 2D puro (stereo L/R sem HRTF 3D espacial)
                 voiceAudioSource.spatialBlend = 0f;
                 voiceAudioSource.playOnAwake  = false;
 
@@ -51,31 +69,47 @@ namespace LuckArkman.XR.Main
         /// </summary>
         public bool ReproduziirClipPiper(AudioClip clip, Guia.EstadoInstrucao comando)
         {
-            if (voiceAudioSource == null || clip == null)
+            // Diagnóstico completo — visível no Console e no logcat Android
+            if (voiceAudioSource == null)
             {
-                Debug.LogWarning("[SpatialAudio] ReproduziirClipPiper: AudioSource ou clip inválido.");
+                Debug.LogError("[SpatialAudio] FALHA: voiceAudioSource é NULL. Arraste um AudioSource para o campo no Inspector.");
+                return false;
+            }
+            if (clip == null)
+            {
+                Debug.LogError("[SpatialAudio] FALHA: AudioClip recebido é NULL.");
+                return false;
+            }
+            if (clip.loadState != AudioDataLoadState.Loaded)
+            {
+                Debug.LogError($"[SpatialAudio] FALHA: Clip ainda não carregado (estado: {clip.loadState}).");
+                return false;
+            }
+            if (clip.length <= 0f)
+            {
+                Debug.LogError("[SpatialAudio] FALHA: Clip com duração zero.");
                 return false;
             }
 
-            // Para qualquer reprodução anterior
+            // Para reprodução anterior
             if (voiceAudioSource.isPlaying)
                 voiceAudioSource.Stop();
 
-            // Destrói o clip Piper anterior — libera memória nativa (GC handle)
+            // Destrói o clip Piper anterior (libera memória nativa)
             if (_clipPiperAtual != null)
             {
                 Destroy(_clipPiperAtual);
                 _clipPiperAtual = null;
             }
 
-            // Aplica direção espacial estereô antes de reproduzir
+            // Aplica direção espacial estereô
             AjustarDirecaoDoSom(comando);
 
-            _clipPiperAtual          = clip;
-            voiceAudioSource.clip    = _clipPiperAtual;
+            _clipPiperAtual       = clip;
+            voiceAudioSource.clip = _clipPiperAtual;
             voiceAudioSource.Play();
 
-            Debug.Log($"[SpatialAudio] Piper TTS → '{comando}' | Pan: {voiceAudioSource.panStereo:+0.0;-0.0;0}");
+            Debug.Log($"[SpatialAudio] ✓ PLAY | '{comando}' | Pan: {voiceAudioSource.panStereo:+0.0;-0.0;0} | Duração: {clip.length:F2}s | AudioSource.isPlaying: {voiceAudioSource.isPlaying}");
             return true;
         }
 

@@ -207,31 +207,39 @@ namespace LuckArkman.XR.Main
         private IEnumerator ConverterTextoParaPiperAudio(string texto, EstadoInstrucao comando, float tempoDesteComando)
         {
             string endpointStr = $"{piperEndpointUrl.TrimEnd('/')}/?text={UnityWebRequest.EscapeURL(texto)}";
+            Debug.Log($"[Piper TTS] Enviando request â€º '{endpointStr}'");
 
             UnityWebRequest audioReq = null;
             bool sucesso = false;
 
             try
             {
-                // FIX ERRO 2: Timeout explícito de 5s. Evita que o servidor Piper
-                // em sobrecarga ou desconectado trave a corrotina indefinidamente.
-                audioReq = UnityWebRequestMultimedia.GetAudioClip(endpointStr, AudioType.WAV);
-                audioReq.timeout = 5;
+                // FIX: AudioType.UNKNOWN instrui o Unity a detectar o formato
+                // automaticamente pelo Content-Type do servidor, sem rejeitar
+                // WAVs cujos cabeçalhos não correspondam exatamente ao padrão.
+                audioReq = UnityWebRequestMultimedia.GetAudioClip(endpointStr, AudioType.UNKNOWN);
+                audioReq.timeout = 8;
             }
             catch (System.Exception ex)
             {
-                Debug.LogWarning($"[Piper ONNX TTS] Erro ao criar request: {ex.Message}");
+                Debug.LogError($"[Piper TTS] Erro ao criar request: {ex.Message}");
                 ExecutarAudioFallback(comando, tempoDesteComando);
                 _coroutineTTSAtiva = null;
-                yield break; // Aborta a corrotina de forma limpa
+                yield break;
             }
 
             using (audioReq)
             {
                 yield return audioReq.SendWebRequest();
 
+                Debug.Log($"[Piper TTS] Resposta HTTP {audioReq.responseCode} | Resultado: {audioReq.result}");
+
                 if (audioReq.result == UnityWebRequest.Result.Success)
                 {
+                    // Log do tamanho dos dados brutos recebidos
+                    var rawData = audioReq.downloadHandler?.data;
+                    Debug.Log($"[Piper TTS] Bytes recebidos: {(rawData != null ? rawData.Length : 0)}");
+
                     AudioClip downloadedClip = null;
                     try
                     {
@@ -239,28 +247,57 @@ namespace LuckArkman.XR.Main
                     }
                     catch (System.Exception ex)
                     {
-                        Debug.LogWarning($"[Piper ONNX TTS] Falha ao decodificar WAV recebido: {ex.Message}");
+                        Debug.LogError($"[Piper TTS] Falha ao decodificar WAV: {ex.Message}");
                     }
 
-                    if (downloadedClip != null)
+                    if (downloadedClip == null)
                     {
-                        // Entrega o clip ao SpatialAudioGuide — ele gerencia o pan,
-                        // a destruição do clip anterior e o Play() via AudioSource.
-                        if (spatialAudio != null && spatialAudio.ReproduziirClipPiper(downloadedClip, comando))
+                        Debug.LogError("[Piper TTS] AudioClip retornado como null após GetContent.");
+                    }
+                    else
+                    {
+                        Debug.Log($"[Piper TTS] Clip criado | LoadState: {downloadedClip.loadState} | Length: {downloadedClip.length:F2}s | Freq: {downloadedClip.frequency}Hz | Ch: {downloadedClip.channels}");
+
+                        // FIX CRÍTICO: Aguarda o AudioClip terminar de carregar.
+                        // GetContent() é assíncrono internamente no Unity — tentar Play()
+                        // com loadState != Loaded resulta em silêncio total sem erro.
+                        float esperaMaxima = 2.0f;
+                        float esperaAcumulada = 0f;
+                        while (downloadedClip.loadState == AudioDataLoadState.Loading && esperaAcumulada < esperaMaxima)
                         {
-                            sucesso = true;
+                            yield return null; // espera um frame
+                            esperaAcumulada += Time.deltaTime;
+                        }
+
+                        Debug.Log($"[Piper TTS] LoadState após espera: {downloadedClip.loadState} ({esperaAcumulada * 1000:F0}ms)");
+
+                        if (downloadedClip.loadState != AudioDataLoadState.Loaded)
+                        {
+                            Debug.LogError($"[Piper TTS] Clip não carregou em {esperaMaxima}s (estado: {downloadedClip.loadState}). Usando fallback.");
+                            Destroy(downloadedClip);
+                        }
+                        else if (downloadedClip.length <= 0f)
+                        {
+                            Debug.LogError("[Piper TTS] Clip carregado mas com duração zero. O servidor pode ter enviado WAV vazio.");
+                            Destroy(downloadedClip);
                         }
                         else
                         {
-                            // SpatialAudio indisponível: destrói o clip para não vazar
-                            Destroy(downloadedClip);
+                            if (spatialAudio != null && spatialAudio.ReproduziirClipPiper(downloadedClip, comando))
+                            {
+                                sucesso = true;
+                            }
+                            else
+                            {
+                                Debug.LogError("[Piper TTS] SpatialAudioGuide recusou o clip (AudioSource null?). Veja o Inspector.");
+                                Destroy(downloadedClip);
+                            }
                         }
                     }
                 }
                 else
                 {
-                    // FIX ERRO 2: Log de aviso (não erro crítico) e fallback suave.
-                    Debug.LogWarning($"[Piper ONNX TTS] Microserviço indisponível ({audioReq.responseCode}): {audioReq.error}");
+                    Debug.LogError($"[Piper TTS] Falha HTTP {audioReq.responseCode}: {audioReq.error}");
                 }
             }
 
@@ -269,7 +306,7 @@ namespace LuckArkman.XR.Main
                 ExecutarAudioFallback(comando, tempoDesteComando);
             }
 
-            _coroutineTTSAtiva = null; // Libera o guard ao finalizar
+            _coroutineTTSAtiva = null;
         }
 
         private string ObterFrasePadraoEspanholInfantil(EstadoInstrucao comando, int passos)
