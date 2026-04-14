@@ -69,11 +69,27 @@ namespace LuckArkman.XR.Main
                 voiceAudioSource.playOnAwake = false;
             }
 
-            // Verifica se o motor TTS on-device está disponível
+            // ── Auto-detecção do motor TTS on-device ─────────────────────────────────
+            // Se o campo não foi preenchido no Inspector, procura na cena automaticamente.
+            if (piperOnnxTTS == null)
+                piperOnnxTTS = FindObjectOfType<PiperOnnxTTS>();
+
             if (piperOnnxTTS != null)
-                Debug.Log("[Guia] PiperOnnxTTS on-device detectado. Modo offline activado.");
+            {
+                // Motor on-device encontrado: desativa o caminho HTTP para evitar
+                // pings de timeout desnecessários ao servidor Python externo.
+                usarPiperLocal = false;
+                Debug.Log("[Guia ✅] PiperOnnxTTS on-device detectado. TTS offline activado, servidor HTTP desativado.");
+            }
             else if (usarPiperLocal)
-                StartCoroutine(VerificarConectividadePiper()); // fallback: servidor HTTP
+            {
+                // Nenhum motor ONNX disponível: verifica se o servidor HTTP está online.
+                StartCoroutine(VerificarConectividadePiper());
+            }
+            else
+            {
+                Debug.LogWarning("[Guia] Nenhum motor TTS configurado. Apenas AudioClips de fallback serão usados.");
+            }
         }
 
         /// <summary>
