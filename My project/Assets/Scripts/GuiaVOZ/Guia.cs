@@ -207,16 +207,13 @@ namespace LuckArkman.XR.Main
         private IEnumerator ConverterTextoParaPiperAudio(string texto, EstadoInstrucao comando, float tempoDesteComando)
         {
             string endpointStr = $"{piperEndpointUrl.TrimEnd('/')}/?text={UnityWebRequest.EscapeURL(texto)}";
-            Debug.Log($"[Piper TTS] Enviando request â€º '{endpointStr}'");
+            Debug.Log($"[Piper TTS] Iniciando síntese → '{texto}'");
 
             UnityWebRequest audioReq = null;
             bool sucesso = false;
 
             try
             {
-                // FIX: AudioType.UNKNOWN instrui o Unity a detectar o formato
-                // automaticamente pelo Content-Type do servidor, sem rejeitar
-                // WAVs cujos cabeçalhos não correspondam exatamente ao padrão.
                 audioReq = UnityWebRequestMultimedia.GetAudioClip(endpointStr, AudioType.UNKNOWN);
                 audioReq.timeout = 8;
             }
@@ -233,109 +230,89 @@ namespace LuckArkman.XR.Main
                 yield return audioReq.SendWebRequest();
 
                 // ============================================================
-                // DIAGNÓSTICO PIPER: verifica se o servidor gerou áudio real
+                // DIAGNÓSTICO: verifica se o servidor Piper gerou áudio real
                 // ============================================================
-                var rawData  = audioReq.downloadHandler?.data;
-                int rawBytes = rawData != null ? rawData.Length : 0;
+                var    rawData     = audioReq.downloadHandler?.data;
+                int    rawBytes    = rawData != null ? rawData.Length : 0;
                 string contentType = audioReq.GetResponseHeader("Content-Type") ?? "(sem Content-Type)";
+                bool   httpOk      = audioReq.result == UnityWebRequest.Result.Success && rawBytes > 44;
 
-                if (audioReq.result == UnityWebRequest.Result.Success && rawBytes > 44) // WAV header = 44 bytes
+                if (httpOk)
                 {
                     Debug.Log(
                         $"[Piper ✅ AUDIO GERADO]\n" +
-                        $"  Texto sintetizado : '{texto}'\n" +
-                        $"  Servidor          : {piperEndpointUrl}\n" +
-                        $"  HTTP Status        : {audioReq.responseCode}\n" +
-                        $"  Content-Type       : {contentType}\n" +
-                        $"  Tamanho WAV        : {rawBytes:N0} bytes ({rawBytes / 1024f:F1} KB)"
+                        $"  Texto       : '{texto}'\n" +
+                        $"  HTTP Status : {audioReq.responseCode}\n" +
+                        $"  Content-Type: {contentType}\n" +
+                        $"  Tamanho WAV : {rawBytes:N0} bytes ({rawBytes / 1024f:F1} KB)"
                     );
                 }
                 else
                 {
                     Debug.LogError(
                         $"[Piper ❌ AUDIO NÃO GERADO]\n" +
-                        $"  Texto enviado      : '{texto}'\n" +
-                        $"  Servidor           : {piperEndpointUrl}\n" +
-                        $"  HTTP Status        : {audioReq.responseCode} | Resultado: {audioReq.result}\n" +
-                        $"  Erro               : {audioReq.error ?? "(nenhum)"}\n" +
-                        $"  Content-Type       : {contentType}\n" +
-                        $"  Bytes recebidos    : {rawBytes} (esperado > 44 para WAV válido)"
+                        $"  Texto       : '{texto}'\n" +
+                        $"  HTTP Status : {audioReq.responseCode} | Resultado: {audioReq.result}\n" +
+                        $"  Erro        : {audioReq.error ?? "(nenhum)"}\n" +
+                        $"  Content-Type: {contentType}\n" +
+                        $"  Bytes       : {rawBytes} (esperado > 44 para WAV válido)"
                     );
-                }
-                // ============================================================
-
-                if (audioReq.result != UnityWebRequest.Result.Success || rawBytes <= 44)
-                {
                     ExecutarAudioFallback(comando, tempoDesteComando);
                     _coroutineTTSAtiva = null;
                     yield break;
                 }
+                // ============================================================
 
-                    AudioClip downloadedClip = null;
-                    try
-                    {
-                        downloadedClip = DownloadHandlerAudioClip.GetContent(audioReq);
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Debug.LogError($"[Piper TTS] Falha ao decodificar WAV: {ex.Message}");
-                    }
+                AudioClip downloadedClip = null;
+                try
+                {
+                    downloadedClip = DownloadHandlerAudioClip.GetContent(audioReq);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"[Piper TTS] Falha ao decodificar WAV: {ex.Message}");
+                }
 
-                    if (downloadedClip == null)
-                    {
-                        Debug.LogError("[Piper TTS] AudioClip retornado como null após GetContent.");
-                    }
-                    else
-                    {
-                        Debug.Log($"[Piper TTS] Clip criado | LoadState: {downloadedClip.loadState} | Length: {downloadedClip.length:F2}s | Freq: {downloadedClip.frequency}Hz | Ch: {downloadedClip.channels}");
-
-                        // FIX CRÍTICO: Aguarda o AudioClip terminar de carregar.
-                        // GetContent() é assíncrono internamente no Unity — tentar Play()
-                        // com loadState != Loaded resulta em silêncio total sem erro.
-                        float esperaMaxima = 2.0f;
-                        float esperaAcumulada = 0f;
-                        while (downloadedClip.loadState == AudioDataLoadState.Loading && esperaAcumulada < esperaMaxima)
-                        {
-                            yield return null; // espera um frame
-                            esperaAcumulada += Time.deltaTime;
-                        }
-
-                        Debug.Log($"[Piper TTS] LoadState após espera: {downloadedClip.loadState} ({esperaAcumulada * 1000:F0}ms)");
-
-                        if (downloadedClip.loadState != AudioDataLoadState.Loaded)
-                        {
-                            Debug.LogError($"[Piper TTS] Clip não carregou em {esperaMaxima}s (estado: {downloadedClip.loadState}). Usando fallback.");
-                            Destroy(downloadedClip);
-                        }
-                        else if (downloadedClip.length <= 0f)
-                        {
-                            Debug.LogError("[Piper TTS] Clip carregado mas com duração zero. O servidor pode ter enviado WAV vazio.");
-                            Destroy(downloadedClip);
-                        }
-                        else
-                        {
-                            if (spatialAudio != null && spatialAudio.ReproduziirClipPiper(downloadedClip, comando))
-                            {
-                                sucesso = true;
-                            }
-                            else
-                            {
-                                Debug.LogError("[Piper TTS] SpatialAudioGuide recusou o clip (AudioSource null?). Veja o Inspector.");
-                                Destroy(downloadedClip);
-                            }
-                        }
-                    }
+                if (downloadedClip == null)
+                {
+                    Debug.LogError("[Piper TTS] AudioClip retornado como null após GetContent.");
                 }
                 else
                 {
-                    Debug.LogError($"[Piper TTS] Falha HTTP {audioReq.responseCode}: {audioReq.error}");
+                    Debug.Log($"[Piper TTS] Clip | LoadState: {downloadedClip.loadState} | Length: {downloadedClip.length:F2}s | Freq: {downloadedClip.frequency}Hz");
+
+                    // Aguarda o clip terminar de carregar (evita Play() silencioso)
+                    float espMax = 2.0f, espAc = 0f;
+                    while (downloadedClip.loadState == AudioDataLoadState.Loading && espAc < espMax)
+                    {
+                        yield return null;
+                        espAc += Time.deltaTime;
+                    }
+
+                    if (downloadedClip.loadState != AudioDataLoadState.Loaded)
+                    {
+                        Debug.LogError($"[Piper TTS] Clip não carregou em {espMax}s (estado: {downloadedClip.loadState}).");
+                        Destroy(downloadedClip);
+                    }
+                    else if (downloadedClip.length <= 0f)
+                    {
+                        Debug.LogError("[Piper TTS] Clip com duração zero.");
+                        Destroy(downloadedClip);
+                    }
+                    else if (spatialAudio != null && spatialAudio.ReproduziirClipPiper(downloadedClip, comando))
+                    {
+                        sucesso = true;
+                    }
+                    else
+                    {
+                        Debug.LogError("[Piper TTS] SpatialAudioGuide recusou o clip (AudioSource null?).");
+                        Destroy(downloadedClip);
+                    }
                 }
             }
 
             if (!sucesso)
-            {
                 ExecutarAudioFallback(comando, tempoDesteComando);
-            }
 
             _coroutineTTSAtiva = null;
         }
