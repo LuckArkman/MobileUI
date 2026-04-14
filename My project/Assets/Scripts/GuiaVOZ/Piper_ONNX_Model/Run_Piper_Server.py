@@ -52,32 +52,58 @@ class PiperTTSHandler(http.server.BaseHTTPRequestHandler):
             return
 
         try:
-            # Sintetiza diretamente para um buffer em memória (sem arquivo temporário)
-            wav_buffer = io.BytesIO()
+            import time
+            t_inicio = time.time()
 
+            # Sintetiza para buffer em memória
+            wav_buffer = io.BytesIO()
             with wave.open(wav_buffer, "wb") as wav_file:
                 voice.synthesize(text, wav_file)
 
-            wav_bytes = wav_buffer.getvalue()
+            wav_bytes   = wav_buffer.getvalue()
             wav_buffer.close()
+            t_fim       = time.time()
+            duracao_sin = t_fim - t_inicio
 
-            if len(wav_bytes) == 0:
-                self._send_error(500, "Síntese retornou áudio vazio.")
+            # ── DIAGNÓSTICO PIPER ──────────────────────────────────────────
+            if len(wav_bytes) > 44:  # WAV header mínimo = 44 bytes
+                # Lê parâmetros do WAV gerado para o log
+                buf_check = io.BytesIO(wav_bytes)
+                with wave.open(buf_check, "rb") as w:
+                    n_ch    = w.getnchannels()
+                    rate    = w.getframerate()
+                    n_fr    = w.getnframes()
+                    dur_s   = n_fr / rate if rate > 0 else 0
+                buf_check.close()
+
+                print(
+                    f"\n[Piper ✅ AUDIO GERADO]\n"
+                    f"  Texto          : '{text}'\n"
+                    f"  Tamanho WAV    : {len(wav_bytes):,} bytes  ({len(wav_bytes)/1024:.1f} KB)\n"
+                    f"  Duração áudio  : {dur_s:.2f}s\n"
+                    f"  Frequência     : {rate} Hz  |  Canais: {n_ch}\n"
+                    f"  Tempo síntese  : {duracao_sin*1000:.0f} ms\n"
+                )
+            else:
+                print(
+                    f"\n[Piper ❌ AUDIO NÃO GERADO]\n"
+                    f"  Texto          : '{text}'\n"
+                    f"  Bytes recebidos: {len(wav_bytes)} (esperado > 44)\n"
+                    f"  Tempo síntese  : {duracao_sin*1000:.0f} ms\n"
+                )
+                self._send_error(500, "Síntese retornou WAV inválido (< 44 bytes).")
                 return
+            # ──────────────────────────────────────────────────────────────
 
-            print(f"[Piper] Áudio gerado: {len(wav_bytes)} bytes")
-
-            # Envia com Content-Type correto para o Unity reconhecer como WAV
             self.send_response(200)
             self.send_header("Content-Type",   "audio/wav")
             self.send_header("Content-Length", str(len(wav_bytes)))
-            # CORS para debug local
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(wav_bytes)
 
         except Exception as e:
-            print(f"[Piper] ERRO na síntese: {e}")
+            print(f"\n[Piper ❌ ERRO NA SÍNTESE]\n  Texto: '{text}'\n  Erro : {e}\n")
             self._send_error(500, str(e))
 
     def _send_error(self, code, message):

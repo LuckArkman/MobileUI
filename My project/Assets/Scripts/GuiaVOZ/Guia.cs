@@ -232,13 +232,44 @@ namespace LuckArkman.XR.Main
             {
                 yield return audioReq.SendWebRequest();
 
-                Debug.Log($"[Piper TTS] Resposta HTTP {audioReq.responseCode} | Resultado: {audioReq.result}");
+                // ============================================================
+                // DIAGNÓSTICO PIPER: verifica se o servidor gerou áudio real
+                // ============================================================
+                var rawData  = audioReq.downloadHandler?.data;
+                int rawBytes = rawData != null ? rawData.Length : 0;
+                string contentType = audioReq.GetResponseHeader("Content-Type") ?? "(sem Content-Type)";
 
-                if (audioReq.result == UnityWebRequest.Result.Success)
+                if (audioReq.result == UnityWebRequest.Result.Success && rawBytes > 44) // WAV header = 44 bytes
                 {
-                    // Log do tamanho dos dados brutos recebidos
-                    var rawData = audioReq.downloadHandler?.data;
-                    Debug.Log($"[Piper TTS] Bytes recebidos: {(rawData != null ? rawData.Length : 0)}");
+                    Debug.Log(
+                        $"[Piper ✅ AUDIO GERADO]\n" +
+                        $"  Texto sintetizado : '{texto}'\n" +
+                        $"  Servidor          : {piperEndpointUrl}\n" +
+                        $"  HTTP Status        : {audioReq.responseCode}\n" +
+                        $"  Content-Type       : {contentType}\n" +
+                        $"  Tamanho WAV        : {rawBytes:N0} bytes ({rawBytes / 1024f:F1} KB)"
+                    );
+                }
+                else
+                {
+                    Debug.LogError(
+                        $"[Piper ❌ AUDIO NÃO GERADO]\n" +
+                        $"  Texto enviado      : '{texto}'\n" +
+                        $"  Servidor           : {piperEndpointUrl}\n" +
+                        $"  HTTP Status        : {audioReq.responseCode} | Resultado: {audioReq.result}\n" +
+                        $"  Erro               : {audioReq.error ?? "(nenhum)"}\n" +
+                        $"  Content-Type       : {contentType}\n" +
+                        $"  Bytes recebidos    : {rawBytes} (esperado > 44 para WAV válido)"
+                    );
+                }
+                // ============================================================
+
+                if (audioReq.result != UnityWebRequest.Result.Success || rawBytes <= 44)
+                {
+                    ExecutarAudioFallback(comando, tempoDesteComando);
+                    _coroutineTTSAtiva = null;
+                    yield break;
+                }
 
                     AudioClip downloadedClip = null;
                     try
