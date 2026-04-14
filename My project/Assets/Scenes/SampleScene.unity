@@ -1905,8 +1905,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.Guia
   spatialAudio: {fileID: 462482251}
-  usarGeminiAudio: 1
-  apiKey: AIzaSyBwrf3zdf6Kwm10SDTPUdQxx8Tvl0J3rTY
+  usarLlamaText: 0
+  llamaEndpointUrl: http://192.168.43.10:11434/api/generate
+  llamaModelName: llama3
+  usarPiperLocal: 1
+  piperEndpointUrl: http://192.168.43.10:5000/
   voiceAudioSource: {fileID: 462482250}
   voiceMoveLeft: {fileID: 0}
   voiceMoveRight: {fileID: 0}
@@ -2690,6 +2693,8 @@ GameObject:
   - component: {fileID: 462482248}
   - component: {fileID: 462482251}
   - component: {fileID: 462482250}
+  - component: {fileID: 462482253}
+  - component: {fileID: 462482252}
   m_Layer: 0
   m_Name: Guia
   m_TagString: Untagged
@@ -2710,8 +2715,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.Guia
   spatialAudio: {fileID: 462482251}
-  usarGeminiAudio: 1
-  apiKey: AIzaSyBwrf3zdf6Kwm10SDTPUdQxx8Tvl0J3rTY
+  usarLlamaText: 0
+  llamaEndpointUrl: http://192.168.43.10:11434/api/generate
+  llamaModelName: llama3
+  usarPiperLocal: 1
+  piperEndpointUrl: http://192.168.43.10:5000/
   voiceAudioSource: {fileID: 462482250}
   voiceMoveLeft: {fileID: 8300000, guid: 4f28546b7ecde174e925f78718182f7c, type: 3}
   voiceMoveRight: {fileID: 8300000, guid: a46fd67368811be4294ba95f79d749a5, type: 3}
@@ -2853,6 +2861,37 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.SpatialAudioGuide
   voiceAudioSource: {fileID: 462482250}
   intensidadeDoPan: 0.8
+--- !u!114 &462482252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 462482247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a77b6da65e3de444aff970ec97f3383, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.SpatialAudioGuide
+  voiceAudioSource: {fileID: 462482250}
+  intensidadeDoPan: 0.8
+--- !u!114 &462482253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 462482247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87bdf6d139e95154e9e3d4bb5c2143a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.VoiceAudioController
+  volumeMaster: 1
+  tomVelocidade: 1
+  graves: 1
+  medios: 1
+  agudos: 1
 --- !u!1 &508700756
 GameObject:
   m_ObjectHideFlags: 0
