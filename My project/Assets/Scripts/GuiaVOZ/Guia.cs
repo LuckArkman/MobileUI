@@ -52,12 +52,7 @@ namespace LuckArkman.XR.Main
         private EstadoInstrucao instrucaoAnterior = EstadoInstrucao.Nenhum;
 
         // FIX ERRO 2: Guard que impede múltiplas corrotinas de TTS paralelas.
-        // Se o microserviço demorar, evita fila de pedidos acumulados.
         private Coroutine _coroutineTTSAtiva = null;
-
-        // FIX ERRO 3: Referência ao AudioClip dinâmico mais recente para destruí-lo
-        // corretamente no OnDestroy, evitando GC handles inválidos no domain reload.
-        private AudioClip _clipDinamicoAtual = null;
 
         // Estrutura para Ollama (LLaMA via Docker)
         [System.Serializable] private class OllamaRequest { public string model; public string prompt; public bool stream; }
@@ -87,7 +82,7 @@ namespace LuckArkman.XR.Main
         private void TocarComandoDeVoz(EstadoInstrucao comando, int passosObjeto = 0, string descricaoAmbiente = "")
         {
             float tempoDesteComando = tempoEsperaAcao;
-            if (spatialAudio != null) spatialAudio.AjustarDirecaoDoSom(comando);
+            // A direção do som é aplicada dentro de cada método da SpatialAudioGuide
 
             // ===============================================
             // LÓGICA 0: LLaMA LOCAL (Ollama no Notebook)
@@ -128,29 +123,27 @@ namespace LuckArkman.XR.Main
 
         private void ExecutarAudioFallback(EstadoInstrucao comando, float tempoDesteComando)
         {
-            if (spatialAudio == null || spatialAudio.voiceAudioSource == null || spatialAudio.voiceAudioSource.isPlaying) return;
+            if (spatialAudio == null || spatialAudio.EstaReproduziindo) return;
 
             AudioClip clipParaTocar = null;
 
             switch (comando)
             {
-                case EstadoInstrucao.Parar: clipParaTocar = voiceStop; tempoDesteComando = tempoEsperaParar; break;
-                case EstadoInstrucao.GirarDireita: clipParaTocar = voiceTurnRight; break;
-                case EstadoInstrucao.GirarEsquerda: clipParaTocar = voiceTurnLeft; break;
-                case EstadoInstrucao.DesviarDireita: clipParaTocar = voiceMoveRight; break;
-                case EstadoInstrucao.DesviarEsquerda: clipParaTocar = voiceMoveLeft; break;
-                case EstadoInstrucao.DesviarDuploDireita: clipParaTocar = voiceMoveDoubleRight; break;
-                case EstadoInstrucao.DesviarDuploEsquerda: clipParaTocar = voiceMoveDoubleLeft; break;
-                case EstadoInstrucao.Frente1: clipParaTocar = voiceFrente1; tempoDesteComando = tempoEsperaContinuar; break;
-                case EstadoInstrucao.Frente2: clipParaTocar = voiceFrente2; tempoDesteComando = tempoEsperaContinuar; break;
-                case EstadoInstrucao.Frente3: clipParaTocar = voiceFrente3; tempoDesteComando = tempoEsperaContinuar; break;
-                case EstadoInstrucao.Frente4: clipParaTocar = voiceFrente4; tempoDesteComando = tempoEsperaContinuar; break;
+                case EstadoInstrucao.Parar:               clipParaTocar = voiceStop;           tempoDesteComando = tempoEsperaParar;   break;
+                case EstadoInstrucao.GirarDireita:        clipParaTocar = voiceTurnRight;                                              break;
+                case EstadoInstrucao.GirarEsquerda:       clipParaTocar = voiceTurnLeft;                                               break;
+                case EstadoInstrucao.DesviarDireita:      clipParaTocar = voiceMoveRight;                                              break;
+                case EstadoInstrucao.DesviarEsquerda:     clipParaTocar = voiceMoveLeft;                                               break;
+                case EstadoInstrucao.DesviarDuploDireita: clipParaTocar = voiceMoveDoubleRight;                                        break;
+                case EstadoInstrucao.DesviarDuploEsquerda:clipParaTocar = voiceMoveDoubleLeft;                                         break;
+                case EstadoInstrucao.Frente1:             clipParaTocar = voiceFrente1;        tempoDesteComando = tempoEsperaContinuar; break;
+                case EstadoInstrucao.Frente2:             clipParaTocar = voiceFrente2;        tempoDesteComando = tempoEsperaContinuar; break;
+                case EstadoInstrucao.Frente3:             clipParaTocar = voiceFrente3;        tempoDesteComando = tempoEsperaContinuar; break;
+                case EstadoInstrucao.Frente4:             clipParaTocar = voiceFrente4;        tempoDesteComando = tempoEsperaContinuar; break;
             }
 
-            if (clipParaTocar != null)
+            if (clipParaTocar != null && spatialAudio.ReproduziirClipFallback(clipParaTocar, comando))
             {
-                spatialAudio.voiceAudioSource.clip = clipParaTocar;
-                spatialAudio.voiceAudioSource.Play();
                 proximoTempoDeFala = Time.time + tempoDesteComando;
             }
         }
@@ -249,21 +242,19 @@ namespace LuckArkman.XR.Main
                         Debug.LogWarning($"[Piper ONNX TTS] Falha ao decodificar WAV recebido: {ex.Message}");
                     }
 
-                    if (downloadedClip != null && spatialAudio != null && spatialAudio.voiceAudioSource != null)
+                    if (downloadedClip != null)
                     {
-                        // FIX ERRO 3: Destrói o clip dinâmico anterior antes de substituí-lo.
-                        // Previne acumulação de AudioClips não gerenciados e GC handles inválidos.
-                        if (_clipDinamicoAtual != null)
+                        // Entrega o clip ao SpatialAudioGuide — ele gerencia o pan,
+                        // a destruição do clip anterior e o Play() via AudioSource.
+                        if (spatialAudio != null && spatialAudio.ReproduziirClipPiper(downloadedClip, comando))
                         {
-                            Destroy(_clipDinamicoAtual);
-                            _clipDinamicoAtual = null;
+                            sucesso = true;
                         }
-
-                        _clipDinamicoAtual = downloadedClip;
-                        spatialAudio.voiceAudioSource.clip = _clipDinamicoAtual;
-                        spatialAudio.voiceAudioSource.Play();
-                        Debug.Log("[Piper ONNX TTS]: Áudio Espanhol reproduzido na orelha direcional correta.");
-                        sucesso = true;
+                        else
+                        {
+                            // SpatialAudio indisponível: destrói o clip para não vazar
+                            Destroy(downloadedClip);
+                        }
                     }
                 }
                 else
@@ -316,13 +307,8 @@ namespace LuckArkman.XR.Main
 
         private void OnDestroy()
         {
-            OnDisable(); // Garante parada de corrotinas
-
-            if (_clipDinamicoAtual != null)
-            {
-                Destroy(_clipDinamicoAtual);
-                _clipDinamicoAtual = null;
-            }
+            OnDisable();
+            // _clipDinamicoAtual agora é gerenciado pelo SpatialAudioGuide.OnDestroy()
         }
     }
 }
