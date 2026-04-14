@@ -11,7 +11,10 @@ namespace LuckArkman.XR.Main
         public enum EstadoInstrucao { Nenhum, Parar, DesviarDireita, DesviarEsquerda, GirarDireita, GirarEsquerda, DesviarDuploDireita, DesviarDuploEsquerda, Frente1, Frente2, Frente3, Frente4 }
 
         [Header("Módulos Integrados")]
-        public SpatialAudioGuide spatialAudio; 
+        public SpatialAudioGuide spatialAudio;
+
+        [Tooltip("Motor TTS ONNX on-device (sem rede). Arraste o GameObject com PiperOnnxTTS aqui.")]
+        public PiperOnnxTTS piperOnnxTTS;
 
         [Header("Generative AI: LLaMA (Ollama Docker Notebook)")]
         [Tooltip("Ative para usar o modelo LLaMA local no seu notebook conectado no roteador do celular.")]
@@ -65,6 +68,46 @@ namespace LuckArkman.XR.Main
                 voiceAudioSource = gameObject.AddComponent<AudioSource>();
                 voiceAudioSource.playOnAwake = false;
             }
+
+            // Verifica se o motor TTS on-device está disponível
+            if (piperOnnxTTS != null)
+                Debug.Log("[Guia] PiperOnnxTTS on-device detectado. Modo offline activado.");
+            else if (usarPiperLocal)
+                StartCoroutine(VerificarConectividadePiper()); // fallback: servidor HTTP
+        }
+
+        /// <summary>
+        /// Faz um ping leve ao servidor Piper assim que o app inicia.
+        /// Se o servidor não responder em 2s, desativa o Piper e avisa no Console.
+        /// Evita 8 segundos de timeout em cada comando de navegação.
+        /// </summary>
+        private IEnumerator VerificarConectividadePiper()
+        {
+            string pingUrl = $"{piperEndpointUrl.TrimEnd('/')}/?text=test";
+
+            using (UnityWebRequest ping = UnityWebRequest.Head(pingUrl))
+            {
+                ping.timeout = 2;
+                yield return ping.SendWebRequest();
+
+                if (ping.result == UnityWebRequest.Result.Success ||
+                    ping.responseCode == 400) // 400 = servidor respondeu (texto vazio), mas está online
+                {
+                    Debug.Log($"[Piper ✅ SERVIDOR ONLINE] Conectado em '{piperEndpointUrl}'");
+                }
+                else
+                {
+                    usarPiperLocal = false;
+                    Debug.LogError(
+                        $"[Piper ❌ SERVIDOR OFFLINE]\n" +
+                        $"  Não foi possível conectar em '{piperEndpointUrl}'\n" +
+                        $"  Erro: {ping.error}\n" +
+                        $"  \u25ba Ação necessária: Execute 'Iniciar_Piper_Server.bat' no notebook\n" +
+                        $"    Caminho: Assets/Scripts/GuiaVOZ/Piper_ONNX_Model/Iniciar_Piper_Server.bat\n" +
+                        $"  O sistema usará os clipes de voz locais como fallback nesta sessão."
+                    );
+                }
+            }
         }
 
         public void ExecutarComando(EstadoInstrucao comandoDecidido, int passosObjeto = 0, string descricaoAmbiente = "")
@@ -99,14 +142,29 @@ namespace LuckArkman.XR.Main
             }
 
             // ===============================================
-            // LÓGICA 0.5: PIPER ONNX TTS ISOLADO (Sem Gen-Text, Apenas Voz)
+            // LÓGICA 0.5: PIPER ONNX TTS ON-DEVICE (sem rede)
+            // ===============================================
+            if (piperOnnxTTS != null)
+            {
+                string frase = ObterFrasePadraoEspanholInfantil(comando, passosObjeto);
+                piperOnnxTTS.Sintetizar(frase, (AudioClip clip) =>
+                {
+                    if (clip != null && spatialAudio != null)
+                        spatialAudio.ReproduziirClipPiper(clip, comando);
+                    else
+                        ExecutarAudioFallback(comando, tempoDesteComando);
+                });
+                proximoTempoDeFala = Time.time + tempoDesteComando;
+                return;
+            }
+
+            // ===============================================
+            // LÓGICA 0.6: PIPER HTTP SERVER (notebook na rede)
             // ===============================================
             if (usarPiperLocal)
             {
                 string textoBasePiper = ObterFrasePadraoEspanholInfantil(comando, passosObjeto);
 
-                // FIX ERRO 2: Cancela a corrotina anterior antes de iniciar uma nova.
-                // Impede que duas falas se sobreponham ou congestionem o servidor Piper.
                 if (_coroutineTTSAtiva != null)
                 {
                     StopCoroutine(_coroutineTTSAtiva);
