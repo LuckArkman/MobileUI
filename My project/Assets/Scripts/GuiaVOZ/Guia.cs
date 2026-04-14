@@ -51,6 +51,14 @@ namespace LuckArkman.XR.Main
         private float proximoTempoDeFala = 0f;
         private EstadoInstrucao instrucaoAnterior = EstadoInstrucao.Nenhum;
 
+        // FIX ERRO 2: Guard que impede múltiplas corrotinas de TTS paralelas.
+        // Se o microserviço demorar, evita fila de pedidos acumulados.
+        private Coroutine _coroutineTTSAtiva = null;
+
+        // FIX ERRO 3: Referência ao AudioClip dinâmico mais recente para destruí-lo
+        // corretamente no OnDestroy, evitando GC handles inválidos no domain reload.
+        private AudioClip _clipDinamicoAtual = null;
+
         // Estrutura para Ollama (LLaMA via Docker)
         [System.Serializable] private class OllamaRequest { public string model; public string prompt; public bool stream; }
         [System.Serializable] private class OllamaResponse { public string response; public bool done; }
@@ -101,7 +109,16 @@ namespace LuckArkman.XR.Main
             if (usarPiperLocal)
             {
                 string textoBasePiper = ObterFrasePadraoEspanholInfantil(comando, passosObjeto);
-                StartCoroutine(ConverterTextoParaPiperAudio(textoBasePiper, comando, tempoDesteComando));
+
+                // FIX ERRO 2: Cancela a corrotina anterior antes de iniciar uma nova.
+                // Impede que duas falas se sobreponham ou congestionem o servidor Piper.
+                if (_coroutineTTSAtiva != null)
+                {
+                    StopCoroutine(_coroutineTTSAtiva);
+                    _coroutineTTSAtiva = null;
+                }
+                _coroutineTTSAtiva = StartCoroutine(ConverterTextoParaPiperAudio(textoBasePiper, comando, tempoDesteComando));
+
                 proximoTempoDeFala = Time.time + tempoDesteComando;
                 return;
             }
@@ -196,50 +213,115 @@ namespace LuckArkman.XR.Main
 
         private IEnumerator ConverterTextoParaPiperAudio(string texto, EstadoInstrucao comando, float tempoDesteComando)
         {
-            // O servidor Python Piper ONNX (Run_Piper_Server.py) recebe e processa o TTS na porta 5000
             string endpointStr = $"{piperEndpointUrl.TrimEnd('/')}/?text={UnityWebRequest.EscapeURL(texto)}";
 
-            using (UnityWebRequest audioReq = UnityWebRequestMultimedia.GetAudioClip(endpointStr, AudioType.WAV))
+            UnityWebRequest audioReq = null;
+            bool sucesso = false;
+
+            try
+            {
+                // FIX ERRO 2: Timeout explícito de 5s. Evita que o servidor Piper
+                // em sobrecarga ou desconectado trave a corrotina indefinidamente.
+                audioReq = UnityWebRequestMultimedia.GetAudioClip(endpointStr, AudioType.WAV);
+                audioReq.timeout = 5;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[Piper ONNX TTS] Erro ao criar request: {ex.Message}");
+                ExecutarAudioFallback(comando, tempoDesteComando);
+                _coroutineTTSAtiva = null;
+                yield break; // Aborta a corrotina de forma limpa
+            }
+
+            using (audioReq)
             {
                 yield return audioReq.SendWebRequest();
-                
+
                 if (audioReq.result == UnityWebRequest.Result.Success)
                 {
-                    AudioClip downloadedClip = DownloadHandlerAudioClip.GetContent(audioReq);
+                    AudioClip downloadedClip = null;
+                    try
+                    {
+                        downloadedClip = DownloadHandlerAudioClip.GetContent(audioReq);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning($"[Piper ONNX TTS] Falha ao decodificar WAV recebido: {ex.Message}");
+                    }
+
                     if (downloadedClip != null && spatialAudio != null && spatialAudio.voiceAudioSource != null)
                     {
-                        spatialAudio.voiceAudioSource.clip = downloadedClip;
+                        // FIX ERRO 3: Destrói o clip dinâmico anterior antes de substituí-lo.
+                        // Previne acumulação de AudioClips não gerenciados e GC handles inválidos.
+                        if (_clipDinamicoAtual != null)
+                        {
+                            Destroy(_clipDinamicoAtual);
+                            _clipDinamicoAtual = null;
+                        }
+
+                        _clipDinamicoAtual = downloadedClip;
+                        spatialAudio.voiceAudioSource.clip = _clipDinamicoAtual;
                         spatialAudio.voiceAudioSource.Play();
-                        Debug.Log($"[Piper ONNX TTS]: Áudio Espanhol reproduzido na orelha direcional correta.");
+                        Debug.Log("[Piper ONNX TTS]: Áudio Espanhol reproduzido na orelha direcional correta.");
+                        sucesso = true;
                     }
                 }
                 else
                 {
-                    Debug.LogError($"[Piper ONNX TTS] Falha no microserviço local: {audioReq.error}");
-                    ExecutarAudioFallback(comando, tempoDesteComando);
+                    // FIX ERRO 2: Log de aviso (não erro crítico) e fallback suave.
+                    Debug.LogWarning($"[Piper ONNX TTS] Microserviço indisponível ({audioReq.responseCode}): {audioReq.error}");
                 }
             }
+
+            if (!sucesso)
+            {
+                ExecutarAudioFallback(comando, tempoDesteComando);
+            }
+
+            _coroutineTTSAtiva = null; // Libera o guard ao finalizar
         }
 
         private string ObterFrasePadraoEspanholInfantil(EstadoInstrucao comando, int passos)
         {
-            // Mapeamento direto de Comandos para a Temática 'O Pequeno Príncipe', em Criança Jovem Espanhol (MX_ald).
             string fimPassos = passos > 0 ? (passos == 1 ? " en un pasito." : $" en {passos} pasos.") : ".";
 
             switch (comando)
             {
-                case EstadoInstrucao.Parar: return "¡Oh! Detente ahí, tenemos algo adelante.";
-                case EstadoInstrucao.GirarDireita: return "Giremos hacia la derecha por favor.";
-                case EstadoInstrucao.GirarEsquerda: return "Vamos hacia tu lado izquierdo, amigo mío.";
-                case EstadoInstrucao.DesviarDireita: return "Un pequeño desvío hacia la derecha ahora.";
-                case EstadoInstrucao.DesviarEsquerda: return "A tu izquierda, un ligero desvío.";
+                case EstadoInstrucao.Parar:               return "¡Oh! Detente ahí, tenemos algo adelante.";
+                case EstadoInstrucao.GirarDireita:        return "Giremos hacia la derecha por favor.";
+                case EstadoInstrucao.GirarEsquerda:       return "Vamos hacia tu lado izquierdo, amigo mío.";
+                case EstadoInstrucao.DesviarDireita:      return "Un pequeño desvío hacia la derecha ahora.";
+                case EstadoInstrucao.DesviarEsquerda:     return "A tu izquierda, un ligero desvío.";
                 case EstadoInstrucao.DesviarDuploDireita: return "Movámonos hacia la derecha por precaución" + fimPassos;
                 case EstadoInstrucao.DesviarDuploEsquerda: return "Avancemos a la izquierda para cuidarte" + fimPassos;
-                case EstadoInstrucao.Frente1: return "Todo despejado, sigue adelante con cuidado.";
-                case EstadoInstrucao.Frente2: return "Podemos caminar tranquilos hacia adelante.";
-                case EstadoInstrucao.Frente3: return "El camino al frente es hermoso y libre.";
-                case EstadoInstrucao.Frente4: return "Aventura adelante, ¡está totalmente libre!";
-                default: return "Caminando, paso a pasito.";
+                case EstadoInstrucao.Frente1:             return "Todo despejado, sigue adelante con cuidado.";
+                case EstadoInstrucao.Frente2:             return "Podemos caminar tranquilos hacia adelante.";
+                case EstadoInstrucao.Frente3:             return "El camino al frente es hermoso y libre.";
+                case EstadoInstrucao.Frente4:             return "Aventura adelante, ¡está totalmente libre!";
+                default:                                  return "Caminando, paso a pasito.";
+            }
+        }
+
+        // FIX ERRO 3: Ciclo de vida correto — para todas as corrotinas TTS ativas
+        // e destrói o AudioClip dinâmico para liberar os native handles de memória
+        // antes que o domain reload invalide os GC handles pendentes.
+        private void OnDisable()
+        {
+            if (_coroutineTTSAtiva != null)
+            {
+                StopCoroutine(_coroutineTTSAtiva);
+                _coroutineTTSAtiva = null;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            OnDisable(); // Garante parada de corrotinas
+
+            if (_clipDinamicoAtual != null)
+            {
+                Destroy(_clipDinamicoAtual);
+                _clipDinamicoAtual = null;
             }
         }
     }

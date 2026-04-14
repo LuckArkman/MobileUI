@@ -57,7 +57,7 @@ namespace LuckArkman.XR.Safety
             if (yoloDetections != null && yoloDetections.Count > 0)
             {
                 DetectionResult perigoPrincipal = yoloDetections[0];
-                string labelPrincipal = perigoPrincipal.label.ToLower();
+                string labelPrincipal = perigoPrincipal.label.ToString().ToLower();
                 if (yoloRiskWeights.TryGetValue(labelPrincipal, out float risk)) yoloMaxRisk = risk;
 
                 float ocupacaoTela = perigoPrincipal.box.width / screenWidth;
@@ -65,7 +65,7 @@ namespace LuckArkman.XR.Safety
 
                 foreach (var det in yoloDetections)
                 {
-                    string label = det.label.ToLower();
+                    string label = det.label.ToString().ToLower();
                     float detRisk = 1.0f;
                     yoloRiskWeights.TryGetValue(label, out detRisk);
                     
