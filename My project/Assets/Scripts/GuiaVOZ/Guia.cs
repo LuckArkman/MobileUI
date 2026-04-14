@@ -13,16 +13,16 @@ namespace LuckArkman.XR.Main
         [Header("Módulos Integrados")]
         public SpatialAudioGuide spatialAudio; 
 
-        [Header("Generative AI: Gemini 2.5 Flash Audio")]
-        [Tooltip("Usa a nova API Native Audio Dialog do Gemini para compor falas doces de menino dinamicamente.")]
-        public bool usarGeminiAudio = true;
-        public string apiKey = "AIzaSyBwrf3zdf6Kwm10SDTPUdQxx8Tvl0J3rTY";
-
         [Header("Generative AI: LLaMA (Ollama Docker Notebook)")]
         [Tooltip("Ative para usar o modelo LLaMA local no seu notebook conectado no roteador do celular.")]
         public bool usarLlamaText = false;
         public string llamaEndpointUrl = "http://192.168.43.10:11434/api/generate";
         public string llamaModelName = "llama3";
+
+        [Header("Generative AI: Piper ONNX TTS (Voz Infantil Local)")]
+        [Tooltip("Ative para usar o Piper ONNX para converter os comandos de texto do LLaMA ou os hardcoded em áudio (com a temática menino, em espanhol).")]
+        public bool usarPiperLocal = true;
+        public string piperEndpointUrl = "http://192.168.43.10:5000/";
 
         [Header("Sistema de Voz Guia (Fallback Físico)")]
         public AudioSource voiceAudioSource;
@@ -50,21 +50,6 @@ namespace LuckArkman.XR.Main
         
         private float proximoTempoDeFala = 0f;
         private EstadoInstrucao instrucaoAnterior = EstadoInstrucao.Nenhum;
-
-        // Estrutura do Novo Gemini 2.5 Native Audio
-        [System.Serializable] private class GeminiRequest { public GeminiContent[] contents; public GeminiGenConfig generationConfig; }
-        [System.Serializable] private class GeminiContent { public string role; public GeminiPart[] parts; }
-        [System.Serializable] private class GeminiPart { public string text; }
-        [System.Serializable] private class GeminiGenConfig { public string[] responseModalities; public GeminiSpeechConfig speechConfig; }
-        [System.Serializable] private class GeminiSpeechConfig { public GeminiVoiceConfig voiceConfig; }
-        [System.Serializable] private class GeminiVoiceConfig { public GeminiPrebuiltConfig prebuiltVoiceConfig; }
-        [System.Serializable] private class GeminiPrebuiltConfig { public string voiceName; }
-
-        [System.Serializable] private class GeminiResponse { public GeminiCandidate[] candidates; }
-        [System.Serializable] private class GeminiCandidate { public GeminiResponseContent content; }
-        [System.Serializable] private class GeminiResponseContent { public GeminiResponsePart[] parts; }
-        [System.Serializable] private class GeminiResponsePart { public GeminiInlineData inlineData; }
-        [System.Serializable] private class GeminiInlineData { public string mimeType; public string data; }
 
         // Estrutura para Ollama (LLaMA via Docker)
         [System.Serializable] private class OllamaRequest { public string model; public string prompt; public bool stream; }
@@ -104,23 +89,21 @@ namespace LuckArkman.XR.Main
                 string textoPassosLlama = (passosObjeto == 1) ? "1 paso" : $"{passosObjeto} pasos";
                 if (passosObjeto == 0) textoPassosLlama = "unos pasos";
 
-                string fraseContexto = $"O usuário com deficiência visual está caminhando. A IA localizou um risco {textoPassosLlama} e decidiu: '{comando}'. Aja como uma inteligência guia. Escreva apenas 1 frase curtíssima em espanhol alertando ele ou guiando-o.";
+                string fraseContexto = $"O usuário com deficiência visual está caminhando. A IA localizou um risco {textoPassosLlama} e decidiu: '{comando}'. Eres una inteligencia de voz infantil (niño). Escreva apenas 1 frase curtíssima em espanhol alertando ele ou guiando-o como o Pequeno Príncipe faria.";
                 StartCoroutine(ProcessarEReproduzirLlama(fraseContexto, comando, tempoDesteComando));
                 proximoTempoDeFala = Time.time + tempoDesteComando;
                 return;
             }
 
             // ===============================================
-            // LÓGICA 1: GEMINI 2.5 FLASH NATIVE AUDIO DIALOG
+            // LÓGICA 0.5: PIPER ONNX TTS ISOLADO (Sem Gen-Text, Apenas Voz)
             // ===============================================
-            if (usarGeminiAudio)
+            if (usarPiperLocal)
             {
-                if (!string.IsNullOrEmpty(descricaoAmbiente))
-                {
-                    StartCoroutine(ProcessarEReproduzirGeminiTTS(descricaoAmbiente, comando, tempoDesteComando));
-                    proximoTempoDeFala = Time.time + tempoDesteComando;
-                }
-                return; 
+                string textoBasePiper = ObterFrasePadraoEspanholInfantil(comando, passosObjeto);
+                StartCoroutine(ConverterTextoParaPiperAudio(textoBasePiper, comando, tempoDesteComando));
+                proximoTempoDeFala = Time.time + tempoDesteComando;
+                return;
             }
 
             ExecutarAudioFallback(comando, tempoDesteComando);
@@ -152,136 +135,6 @@ namespace LuckArkman.XR.Main
                 spatialAudio.voiceAudioSource.clip = clipParaTocar;
                 spatialAudio.voiceAudioSource.Play();
                 proximoTempoDeFala = Time.time + tempoDesteComando;
-            }
-        }
-
-        private IEnumerator ProcessarEReproduzirGeminiTTS(string descricaoDaCenaRadar, EstadoInstrucao comando, float tempoDesteComando)
-        {
-            // O modelo Gemini Flash Live é forçado especificamente quando há falha do standard no Audio Dialog
-            string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
-
-            // O Contexto modificado força a IA a olhar para a cena descrita e formular a voz baseada no ambiente
-            string promptPersona = $"Genera obligatoriamente tu respuesta como una pista de audio (Native Audio) descriptiva. Eres un perro guía y debes narrar este escenario al ciego basándote EN LOS DATOS DEL RADAR a continuación y la acción de proteger '{comando}'. Datos del Radar actual: '{descricaoDaCenaRadar}'. NO retornes texto, usa la modalidad de audio. Sé muy conciso y directo en una sola frase.";
-
-            GeminiRequest reqData = new GeminiRequest
-            {
-                contents = new GeminiContent[] {
-                    new GeminiContent {
-                        role = "user",
-                        parts = new GeminiPart[] { new GeminiPart { text = promptPersona } }
-                    }
-                },
-                generationConfig = new GeminiGenConfig {
-                    responseModalities = new string[] { "AUDIO" },
-                    speechConfig = new GeminiSpeechConfig {
-                        voiceConfig = new GeminiVoiceConfig {
-                            // "Puck" é descrito oficialmente pela Google como neutro/androgino e jovem
-                            prebuiltVoiceConfig = new GeminiPrebuiltConfig { voiceName = "Puck" }
-                        }
-                    }
-                }
-            };
-
-            string jsonData = JsonUtility.ToJson(reqData);
-
-            using (UnityWebRequest webReq = new UnityWebRequest(url, "POST"))
-            {
-                byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
-                webReq.uploadHandler = new UploadHandlerRaw(bodyRaw);
-                webReq.downloadHandler = new DownloadHandlerBuffer();
-                webReq.SetRequestHeader("Content-Type", "application/json");
-
-                yield return webReq.SendWebRequest();
-
-                if (webReq.result != UnityWebRequest.Result.Success)
-                {
-                    Debug.LogWarning($"[Gemini 2.5 Audio] Limite da API ou falha de rede: {webReq.error}");
-                    
-                    if (webReq.responseCode == 429)
-                    {
-                        usarGeminiAudio = false;
-                        Debug.LogWarning("[Gemini 2.5 Audio] Quota de requisições gratuitas excedida (429). A IA generativa ficará adormecida nesta sessão, recorrendo aos clipes físicos locais.");
-                    }
-                    
-                    ExecutarAudioFallback(comando, tempoDesteComando);
-                }
-                else
-                {
-                    string audioBase64 = null;
-                    try
-                    {
-                        GeminiResponse resData = JsonUtility.FromJson<GeminiResponse>(webReq.downloadHandler.text);
-                        if (resData.candidates != null && resData.candidates.Length > 0 && resData.candidates[0].content.parts.Length > 0)
-                        {
-                            var inlineData = resData.candidates[0].content.parts[0].inlineData;
-                            if (inlineData != null && !string.IsNullOrEmpty(inlineData.data))
-                            {
-                                audioBase64 = inlineData.data;
-                            }
-                            else
-                            {
-                                Debug.LogWarning("[Gemini 2.5 Audio] A Resposta do Gemini não retornou fragmento de áudio inline/Wav. Verifique sua permissão Modalidade.");
-                            }
-                        }
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Debug.LogError("[Gemini 2.5 Audio] Erro crítico ao decodificar a estrutura Cloud Json: " + ex.Message);
-                    }
-
-                    if (!string.IsNullOrEmpty(audioBase64))
-                    {
-                        string tempPath = Path.Combine(Application.temporaryCachePath, "gemini_voice.wav");
-                        bool gravado = false;
-                        
-                        try
-                        {
-                            byte[] audioWavBytes = System.Convert.FromBase64String(audioBase64);
-                            File.WriteAllBytes(tempPath, audioWavBytes);
-                            gravado = true;
-                        }
-                        catch (System.Exception ex)
-                        {
-                            Debug.LogError("[Gemini 2.5 Audio] Erro crítico ao decodificar e salvar a Base64: " + ex.Message);
-                        }
-
-                        if (gravado)
-                        {
-                            string fileUri = "file://" + tempPath;
-                            using (UnityWebRequest audioReq = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.WAV))
-                            {
-                                yield return audioReq.SendWebRequest();
-                                
-                                if (audioReq.result == UnityWebRequest.Result.Success)
-                                {
-                                    AudioClip downloadedClip = DownloadHandlerAudioClip.GetContent(audioReq);
-                                    if (downloadedClip != null)
-                                    {
-                                        if (spatialAudio != null && spatialAudio.voiceAudioSource != null)
-                                        {
-                                            spatialAudio.voiceAudioSource.clip = downloadedClip;
-                                            spatialAudio.voiceAudioSource.Play();
-                                        }
-                                        Debug.Log($"[Gemini 2.5 Native Audio Dialog]: Som reproduzido descrevendo a cena no áudio 3D.");
-                                    }
-                                }
-                                else
-                                {
-                                    Debug.LogError($"[Cloud TTS] Erro ao instanciar buffer gerado: {audioReq.error}");
-                                    ExecutarAudioFallback(comando, tempoDesteComando);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            ExecutarAudioFallback(comando, tempoDesteComando);
-                        }
-                    }
-                    else
-                    {
-                        ExecutarAudioFallback(comando, tempoDesteComando);
-                    }
-                }
             }
         }
 
@@ -322,9 +175,15 @@ namespace LuckArkman.XR.Main
                         OllamaResponse resData = JsonUtility.FromJson<OllamaResponse>(webReq.downloadHandler.text);
                         Debug.Log($"[LLaMA 3 | Notebook]: '{resData.response}'");
                         
-                        // NOTA: Como o LLaMA é puro texto, usamos o sistema local físico de voz
-                        // Simultaneamente para não travar o usuário enquanto a IA não possui um módulo TTS.
-                        ExecutarAudioFallback(comando, tempoDesteComando);
+                        // NOTA: Se o Piper TTS estiver ativado, processa o texto recém gerado em voz infantil pelo ONNX!
+                        if (usarPiperLocal) 
+                        {
+                            StartCoroutine(ConverterTextoParaPiperAudio(resData.response, comando, tempoDesteComando));
+                        }
+                        else
+                        {
+                            ExecutarAudioFallback(comando, tempoDesteComando);
+                        }
                     }
                     catch (System.Exception ex)
                     {
@@ -332,6 +191,55 @@ namespace LuckArkman.XR.Main
                         ExecutarAudioFallback(comando, tempoDesteComando);
                     }
                 }
+            }
+        }
+
+        private IEnumerator ConverterTextoParaPiperAudio(string texto, EstadoInstrucao comando, float tempoDesteComando)
+        {
+            // O servidor Python Piper ONNX (Run_Piper_Server.py) recebe e processa o TTS na porta 5000
+            string endpointStr = $"{piperEndpointUrl.TrimEnd('/')}/?text={UnityWebRequest.EscapeURL(texto)}";
+
+            using (UnityWebRequest audioReq = UnityWebRequestMultimedia.GetAudioClip(endpointStr, AudioType.WAV))
+            {
+                yield return audioReq.SendWebRequest();
+                
+                if (audioReq.result == UnityWebRequest.Result.Success)
+                {
+                    AudioClip downloadedClip = DownloadHandlerAudioClip.GetContent(audioReq);
+                    if (downloadedClip != null && spatialAudio != null && spatialAudio.voiceAudioSource != null)
+                    {
+                        spatialAudio.voiceAudioSource.clip = downloadedClip;
+                        spatialAudio.voiceAudioSource.Play();
+                        Debug.Log($"[Piper ONNX TTS]: Áudio Espanhol reproduzido na orelha direcional correta.");
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"[Piper ONNX TTS] Falha no microserviço local: {audioReq.error}");
+                    ExecutarAudioFallback(comando, tempoDesteComando);
+                }
+            }
+        }
+
+        private string ObterFrasePadraoEspanholInfantil(EstadoInstrucao comando, int passos)
+        {
+            // Mapeamento direto de Comandos para a Temática 'O Pequeno Príncipe', em Criança Jovem Espanhol (MX_ald).
+            string fimPassos = passos > 0 ? (passos == 1 ? " en un pasito." : $" en {passos} pasos.") : ".";
+
+            switch (comando)
+            {
+                case EstadoInstrucao.Parar: return "¡Oh! Detente ahí, tenemos algo adelante.";
+                case EstadoInstrucao.GirarDireita: return "Giremos hacia la derecha por favor.";
+                case EstadoInstrucao.GirarEsquerda: return "Vamos hacia tu lado izquierdo, amigo mío.";
+                case EstadoInstrucao.DesviarDireita: return "Un pequeño desvío hacia la derecha ahora.";
+                case EstadoInstrucao.DesviarEsquerda: return "A tu izquierda, un ligero desvío.";
+                case EstadoInstrucao.DesviarDuploDireita: return "Movámonos hacia la derecha por precaución" + fimPassos;
+                case EstadoInstrucao.DesviarDuploEsquerda: return "Avancemos a la izquierda para cuidarte" + fimPassos;
+                case EstadoInstrucao.Frente1: return "Todo despejado, sigue adelante con cuidado.";
+                case EstadoInstrucao.Frente2: return "Podemos caminar tranquilos hacia adelante.";
+                case EstadoInstrucao.Frente3: return "El camino al frente es hermoso y libre.";
+                case EstadoInstrucao.Frente4: return "Aventura adelante, ¡está totalmente libre!";
+                default: return "Caminando, paso a pasito.";
             }
         }
     }

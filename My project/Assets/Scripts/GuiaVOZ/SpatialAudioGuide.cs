@@ -17,6 +17,13 @@ namespace LuckArkman.XR.Main
             {
                 // Garante que o Unity vai respeitar o Pan (2D/3D balance)
                 voiceAudioSource.spatialBlend = 0f; 
+                
+                // Acopla visualmente e aciona no Áudio o Controlador/Equalizador de Voz Automático
+                if (voiceAudioSource.gameObject.GetComponent<VoiceAudioController>() == null)
+                {
+                    voiceAudioSource.gameObject.AddComponent<VoiceAudioController>();
+                    Debug.Log("[Spatial Audio] Processador de Equalização (Graves/Médios/Agudos) anexado automaticamente!");
+                }
             }
         }
 
