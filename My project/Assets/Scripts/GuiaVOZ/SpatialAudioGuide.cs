@@ -28,15 +28,19 @@ namespace LuckArkman.XR.Main
             if (voiceAudioSource == null)
                 voiceAudioSource = GetComponent<AudioSource>();
 
-            // Se ainda for null, cria um no mesmo GameObject
             if (voiceAudioSource == null)
             {
+                // AudioSource não existia: cria um novo com defaults seguros.
+                // Só neste caso aplicamos valores padrão — não sobrescrevemos
+                // um AudioSource que o utilizador já configurou no Inspector.
                 voiceAudioSource = gameObject.AddComponent<AudioSource>();
+                voiceAudioSource.spatialBlend = 0f;
+                voiceAudioSource.playOnAwake  = false;
+                voiceAudioSource.loop         = false;
                 Debug.LogWarning("[SpatialAudio] AudioSource não encontrado no Inspector — criado automaticamente.");
             }
-
-            voiceAudioSource.spatialBlend = 0f;
-            voiceAudioSource.playOnAwake  = false;
+            // Se o AudioSource já existia: respeitamos TODOS os parâmetros
+            // que o utilizador definiu no Inspector (volume, pitch, spatialBlend, etc.)
         }
 
         private void Start()
@@ -44,17 +48,13 @@ namespace LuckArkman.XR.Main
             if (voiceAudioSource == null)
                 voiceAudioSource = GetComponent<AudioSource>();
 
-            if (voiceAudioSource != null)
+            // Acopla o equalizador DSP apenas se ainda não estiver presente.
+            // Não sobrescrevemos nenhum parâmetro do AudioSource aqui.
+            if (voiceAudioSource != null &&
+                voiceAudioSource.gameObject.GetComponent<VoiceAudioController>() == null)
             {
-                voiceAudioSource.spatialBlend = 0f;
-                voiceAudioSource.playOnAwake  = false;
-
-                // Acopla o equalizador DSP automático (Graves/Médios/Agudos)
-                if (voiceAudioSource.gameObject.GetComponent<VoiceAudioController>() == null)
-                {
-                    voiceAudioSource.gameObject.AddComponent<VoiceAudioController>();
-                    Debug.Log("[SpatialAudio] Equalizador DSP anexado ao AudioSource.");
-                }
+                voiceAudioSource.gameObject.AddComponent<VoiceAudioController>();
+                Debug.Log("[SpatialAudio] Equalizador DSP anexado ao AudioSource.");
             }
         }
 

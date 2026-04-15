@@ -45,18 +45,24 @@ namespace LuckArkman.XR.Main
         {
             _audioSource = GetComponent<AudioSource>();
 
-            // Captura o sample rate aqui, na Main Thread, antes de qualquer
-            // chamada ao callback OnAudioFilterRead.
+            // FIX: Lê os parâmetros DO AudioSource configurado no Inspector
+            // em vez de sobrescrevê-los com os valores padrão do script.
+            // Isto preserva Volume, Pitch e quaisquer outros ajustes do utilizador.
+            if (_audioSource != null)
+            {
+                volumeMaster  = _audioSource.volume;
+                tomVelocidade = _audioSource.pitch;
+            }
+
+            // Captura o sample rate na Main Thread (thread-safe para OnAudioFilterRead)
             _cachedSampleRate = AudioSettings.outputSampleRate;
-
-            AplicarParametrosPrimarios();
         }
 
-        void Update()
-        {
-            AplicarParametrosPrimarios();
-        }
-
+        /// <summary>
+        /// Aplica volume e pitch ao AudioSource.
+        /// Chamado explicitamente quando necessário (não mais em Update).
+        /// No Editor, OnValidate() garante feedback imediato ao mover os sliders.
+        /// </summary>
         private void AplicarParametrosPrimarios()
         {
             if (_audioSource != null)
@@ -65,6 +71,19 @@ namespace LuckArkman.XR.Main
                 _audioSource.pitch  = tomVelocidade;
             }
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Chamado pelo Editor quando qualquer campo é alterado no Inspector.
+        /// Permite ver o efeito dos sliders em tempo real sem precisar de Play.
+        /// </summary>
+        private void OnValidate()
+        {
+            if (_audioSource == null)
+                _audioSource = GetComponent<AudioSource>();
+            AplicarParametrosPrimarios();
+        }
+#endif
 
         /// <summary>
         /// Callback de DSP — roda na thread de áudio, não na Main Thread.
