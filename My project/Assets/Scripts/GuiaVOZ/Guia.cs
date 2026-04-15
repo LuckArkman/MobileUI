@@ -57,6 +57,12 @@ namespace LuckArkman.XR.Main
         // FIX ERRO 2: Guard que impede múltiplas corrotinas de TTS paralelas.
         private Coroutine _coroutineTTSAtiva = null;
 
+        // Guard principal: cobre TODA a janela — desde o início da síntese ONNX
+        // até o fim da reprodução do AudioClip. Impede que novas chamadas
+        // iniciem enquanto o pipeline está activo (inclui o intervalo assíncrono
+        // em que EstaReproduziindo ainda é false, mas a síntese já começou).
+        private bool _ttsOcupado = false;
+
         // Estrutura para Ollama (LLaMA via Docker)
         [System.Serializable] private class OllamaRequest { public string model; public string prompt; public bool stream; }
         [System.Serializable] private class OllamaResponse { public string response; public bool done; }
@@ -128,16 +134,13 @@ namespace LuckArkman.XR.Main
 
         public void ExecutarComando(EstadoInstrucao comandoDecidido, int passosObjeto = 0, string descricaoAmbiente = "")
         {
-            // Não interrompe áudio que ainda está a tocar
-            if (spatialAudio != null && spatialAudio.EstaReproduziindo) return;
+            // Guard duplo: bloqueia durante a síntese ONNX E durante o playback
+            if (_ttsOcupado || (spatialAudio != null && spatialAudio.EstaReproduziindo)) return;
 
-            if (Time.time >= proximoTempoDeFala)
+            if (Time.time >= proximoTempoDeFala && comandoDecidido != instrucaoAnterior)
             {
-                if (comandoDecidido != instrucaoAnterior)
-                {
-                    TocarComandoDeVoz(comandoDecidido, passosObjeto, descricaoAmbiente);
-                    instrucaoAnterior = comandoDecidido;
-                }
+                TocarComandoDeVoz(comandoDecidido, passosObjeto, descricaoAmbiente);
+                instrucaoAnterior = comandoDecidido;
             }
         }
 
@@ -149,8 +152,8 @@ namespace LuckArkman.XR.Main
                                             LuckArkman.XR.AI.MidasResult midasResult,
                                             int passosObjeto = 0)
         {
-            // Não interrompe áudio que ainda está a tocar
-            if (spatialAudio != null && spatialAudio.EstaReproduziindo) return;
+            // Guard duplo: bloqueia durante a síntese ONNX E durante o playback
+            if (_ttsOcupado || (spatialAudio != null && spatialAudio.EstaReproduziindo)) return;
 
             if (Time.time >= proximoTempoDeFala)
             {
@@ -198,13 +201,14 @@ namespace LuckArkman.XR.Main
             // ===============================================
             if (piperOnnxTTS != null)
             {
-                // Usa descrição contextual do MiDaS quando disponível
                 string frase = temDescricaoMidas
                     ? descricaoAmbiente
                     : ObterFrasePadraoEspanholInfantil(comando, passosObjeto);
 
-                // Timer pessimista até o clip estar pronto (evita race durante a síntese)
-                proximoTempoDeFala = Time.time + tempoDesteComando;
+                // LOCK: bloqueia qualquer nova síntese até o playback terminar
+                _ttsOcupado = true;
+                float tempoInicioSintese = Time.time;
+                proximoTempoDeFala = Time.time + tempoDesteComando; // pessimista
 
                 piperOnnxTTS.Sintetizar(frase, (AudioClip clip) =>
                 {
@@ -212,16 +216,24 @@ namespace LuckArkman.XR.Main
                     {
                         if (spatialAudio.ReproduziirClipPiper(clip, comando))
                         {
-                            // FIX: Actualiza com a duração REAL do clip (já inclui pitchShiftFactor)
-                            // + 0.4s de buffer para evitar corte no último fonema.
-                            const float BUFFER_FINAL = 0.4f;
-                            proximoTempoDeFala = Time.time + clip.length + BUFFER_FINAL;
-                            Debug.Log($"[Guia] Timer actualizado: clip={clip.length:F2}s + buffer={BUFFER_FINAL}s " +
-                                      $"→ próxima fala em {clip.length + BUFFER_FINAL:F2}s");
+                            float tempoSintese = Time.time - tempoInicioSintese;
+                            proximoTempoDeFala = Time.time + clip.length + 0.5f; // pessimista
+
+                            Debug.Log($"[Guia ✅] Síntese={tempoSintese:F2}s | Clip={clip.length:F2}s | " +
+                                      $"Aguardando AudioSource terminar...");
+
+                            // Aguarda o AudioSource confirmar que parou (mais preciso
+                            // que WaitForSeconds num dispositivo com buffer de áudio variável)
+                            StartCoroutine(LiberarTtsQuandoTerminar());
+                        }
+                        else
+                        {
+                            _ttsOcupado = false; // falhou — libera imediatamente
                         }
                     }
                     else
                     {
+                        _ttsOcupado = false;
                         ExecutarAudioFallback(comando, tempoDesteComando);
                     }
                 });
@@ -502,12 +514,45 @@ namespace LuckArkman.XR.Main
                 StopCoroutine(_coroutineTTSAtiva);
                 _coroutineTTSAtiva = null;
             }
+            _ttsOcupado = false; // reset do lock ao desativar
         }
 
         private void OnDestroy()
         {
             OnDisable();
-            // _clipDinamicoAtual agora é gerenciado pelo SpatialAudioGuide.OnDestroy()
+        }
+
+        /// <summary>
+        /// Aguarda até o AudioSource reportar isPlaying=false antes de libertar o lock.
+        /// Mais preciso que WaitForSeconds: funciona mesmo com drift de buffer de áudio Android.
+        /// Watchdog de 10s evita que o lock fique preso se algo falhar silenciosamente.
+        /// </summary>
+        private IEnumerator LiberarTtsQuandoTerminar()
+        {
+            // Watchdog: no máximo 10 segundos de espera
+            float watchdog = Time.time + 10f;
+
+            // Aguarda o áudio começar (pode demorar 1-2 frames após Play())
+            yield return null;
+            yield return null;
+
+            // Espera activa até o AudioSource confirmar que parou
+            yield return new WaitUntil(() =>
+                spatialAudio == null ||
+                !spatialAudio.EstaReproduziindo ||
+                Time.time >= watchdog
+            );
+
+            // Pequena pausa de segurança (0.3s) para não cortar o último fonema
+            yield return new WaitForSeconds(0.3f);
+
+            _ttsOcupado = false;
+            proximoTempoDeFala = 0f; // permite novo comando imediatamente
+
+            if (Time.time >= watchdog)
+                Debug.LogWarning("[Guia] Watchdog TTS activado (10s) — lock libertado forçosamente.");
+            else
+                Debug.Log("[Guia] ✅ Áudio terminado — TTS pronto para próximo comando.");
         }
     }
 }
