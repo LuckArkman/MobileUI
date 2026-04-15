@@ -103,46 +103,51 @@ namespace LuckArkman.XR.Main
                 if (contadorFrames >= 14) contadorFrames = 0;
 
                 // ==============================================================
-                // TOMADA DE DECISÃO (Usa sempre os dados mais frescos de ambas as frentes)
+                // TOMADA DE DECISÃO POR FRAME (pontuação + buffer temporal)
                 // ==============================================================
                 if (decisionMatrix != null && sistemaGuia != null)
                 {
-                    Guia.EstadoInstrucao comandoFinal = decisionMatrix.AvaliarCenario(
-                        ultimoYoloData, 
-                        ultimoMidasData, 
+                    decisionMatrix.AvaliarCenario(
+                        ultimoYoloData,
+                        ultimoMidasData,
                         mjpegClient.streamTexture.width
                     );
-                    
-                    // Conversão de Risco para Passos: Mapeia o quão bloqueado o usuário está
-                    // Se Danger Score é 8+ -> a 1 passo de bater. Se é 2 -> a uns 6 passos de distância.
-                    int passosCalculados = Mathf.Max(1, 8 - Mathf.RoundToInt(ultimoMidasData.dangerScore));
-                    
-                    if (!sistemaGuia.EstaTocandoAudioDeSistema)
+
+                    if (contadorFrames == 0)
                     {
-                        // Cena descritiva gerada a partir dos dados do Radar MiDaS e Semântica YOLO
+                        // CORREÇÃO AQUI: Removido o 'if' que quebrava o compilador.
+                        // Agora ele extrai o pacote diretamente do método.
+                        Decision.DecisaoPacote pacoteFinal = decisionMatrix.ObterConsenso(out string placar);
+
                         string descricaoAmbiente = $"Frente: {ultimoMidasData.dangerScore:F1}/10 | Esq: {ultimoMidasData.leftZoneDanger:F1}/10 | Dir: {ultimoMidasData.rightZoneDanger:F1}/10.";
                         if (ultimoYoloData != null && ultimoYoloData.Count > 0)
                         {
                             descricaoAmbiente += $" Há os seguintes objetos em volta: {ultimoYoloData[0].label}.";
                         }
-                        
-                        // 1. Envia a ordem para a boca falar informando os passos
-                        sistemaGuia.ExecutarComando(comandoFinal, passosCalculados, descricaoAmbiente);
 
-                        // 2. DESCANSO COGNITIVO E BATERIA
+                        int passosCalculados = Mathf.Max(1, 8 - Mathf.RoundToInt(ultimoMidasData.dangerScore));
+
+                        Debug.Log($"[Main - CONSENSO ATINGIDO] Analisados 14 frames. Placar: {placar}. Comando Final Enviado ao Guia: {pacoteFinal.comando}. Motivo semântico: {pacoteFinal.motivoSemantico}.");
+
+                        if (!sistemaGuia.EstaTocandoAudioDeSistema)
+                        {
+                            // Envia o comando, passos, descrição e o motivo semântico para o Guia.cs
+                            sistemaGuia.ExecutarComando(pacoteFinal.comando, passosCalculados, descricaoAmbiente, pacoteFinal.motivoSemantico);
+                        }
+
                         bool isManobraEvasiva = 
-                            comandoFinal != Guia.EstadoInstrucao.Frente1 && 
-                            comandoFinal != Guia.EstadoInstrucao.Frente2 && 
-                            comandoFinal != Guia.EstadoInstrucao.Frente3 && 
-                            comandoFinal != Guia.EstadoInstrucao.Frente4 && 
-                            comandoFinal != Guia.EstadoInstrucao.Nenhum;
+                            pacoteFinal.comando != Guia.EstadoInstrucao.Frente1 && 
+                            pacoteFinal.comando != Guia.EstadoInstrucao.Frente2 && 
+                            pacoteFinal.comando != Guia.EstadoInstrucao.Frente3 && 
+                            pacoteFinal.comando != Guia.EstadoInstrucao.Frente4 && 
+                            pacoteFinal.comando != Guia.EstadoInstrucao.Nenhum;
 
                         if (isManobraEvasiva)
                         {
-                            // Apenas quando manda girar/parar/desviar, a IA dorme por 1.5s.
-                            tempoDescansoManobra = Time.time + 1.5f; 
-                            decisionMatrix.LimparBuffer(); // Apaga a memória velha para a nova rota
+                            tempoDescansoManobra = Time.time + 1.5f;
                         }
+
+                        decisionMatrix.LimparBuffer();
                     }
                 }
             }

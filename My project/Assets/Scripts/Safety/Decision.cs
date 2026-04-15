@@ -2,33 +2,41 @@ using UnityEngine;
 using System.Collections.Generic;
 using LuckArkman.XR.AI;
 using LuckArkman.XR.Main;
-using LuckArkman.XR.Navigation; 
-using System.Linq; 
+using LuckArkman.XR.Navigation;
+using System.Linq;
 
 namespace LuckArkman.XR.Safety
 {
     public class Decision : MonoBehaviour
     {
+        public struct DecisaoPacote
+        {
+            public Guia.EstadoInstrucao comando;
+            public string motivoSemantico;
+        }
+
         [Header("Configurações de Decisão")]
-        public float thresholdAcao = 5.0f;
-        public int tamanhoBuffer = 10;
+        public int consensoFrameCount = 14;
+        public float intentionBonus = 50f;
+        public float safetyBonus = 30f;
+        public float turnBonus = 90f;
+        public float narrowObstacleBonus = 45f;
+        public float sideBlockPenalty = 100f;
+        public float partialSidePenalty = 70f;
+        public float frontPenalty = 35f;
+        public float extremeFrontPenalty = 1000f;
+        public float objectRoutePenalty = 20f;
+        public float objectRouteSafetyBonus = 15f;
+        public float rightBlockThreshold = 6.0f;
+        public float leftBlockThreshold = 6.0f;
+        public float largeTurnThreshold = 45f;
+        public float smallTurnThreshold = 15f;
+        public float straightThreshold = 15f;
 
         [Header("Integração Visual")]
         public HeatmapManager heatmapManager;
 
-        private struct DadosFrame
-        {
-            public float riscoCombinado;
-            public float perigoEsq;
-            public float perigoDir;
-            public float dimensao;
-            public float bloqueioGeral;
-        }
-        private Queue<DadosFrame> historicoFrames = new Queue<DadosFrame>();
-
-        private bool emEscapatoria = false;
-        private float bloqueioAntesDoGiro = 0f;
-        private bool girouParaEsquerda = false;
+        private Queue<DecisaoPacote> frameWinners = new Queue<DecisaoPacote>();
 
         private Dictionary<string, float> yoloRiskWeights = new Dictionary<string, float>()
         {
@@ -43,214 +51,368 @@ namespace LuckArkman.XR.Safety
 
         public void LimparBuffer()
         {
-            historicoFrames.Clear();
+            frameWinners.Clear();
         }
 
-        public Guia.EstadoInstrucao AvaliarCenario(List<DetectionResult> yoloDetections, MidasResult midasData, int screenWidth)
+        public DecisaoPacote AvaliarCenario(List<DetectionResult> yoloDetections, MidasResult midasData, int screenWidth)
         {
-            float yoloMaxRisk = 2.5f;
-            float dimensaoInstantanea = 1f;
-            bool temObjetoMovelPerto = false;
+            float anguloRelativo = 0f;
+            if (NavigationManager.Instance != null && NavigationManager.Instance.isNavigating)
+            {
+                anguloRelativo = NavigationManager.Instance.anguloRelativoAoDestino;
+            }
 
-            List<HeatmapManager.HeatmapPoint> pontosHeatmap = new List<HeatmapManager.HeatmapPoint>();
+            string motivoSemantico = string.Empty;
+            bool temObjetoCriticoNaRota = false;
+            string principalLabel = string.Empty;
+            float principalWidthRatio = 0f;
+            float principalCenter = 0.5f;
+            float yoloMaxRisk = 2.5f;
+            List<HeatmapManager.HeatmapPoint> heatmapPoints = new List<HeatmapManager.HeatmapPoint>();
 
             if (yoloDetections != null && yoloDetections.Count > 0)
             {
-                DetectionResult perigoPrincipal = yoloDetections[0];
-                string labelPrincipal = perigoPrincipal.label.ToString().ToLower();
-                if (yoloRiskWeights.TryGetValue(labelPrincipal, out float risk)) yoloMaxRisk = risk;
+                var principalDet = yoloDetections
+                    .OrderByDescending(d => d.box.width * d.box.height)
+                    .First();
 
-                float ocupacaoTela = perigoPrincipal.box.width / screenWidth;
-                dimensaoInstantanea = Mathf.Clamp(Mathf.Ceil(ocupacaoTela * 5f), 1f, 5f);
+                principalLabel = principalDet.label.ToString().ToLower();
+                principalWidthRatio = principalDet.box.width / screenWidth;
+                principalCenter = principalDet.box.center.x / screenWidth;
 
                 foreach (var det in yoloDetections)
                 {
                     string label = det.label.ToString().ToLower();
-                    float detRisk = 1.0f;
-                    yoloRiskWeights.TryGetValue(label, out detRisk);
-                    
-                    float ocupacaoObj = det.box.width / screenWidth;
+                    float risk = 1.0f;
+                    yoloRiskWeights.TryGetValue(label, out risk);
 
-                    pontosHeatmap.Add(new HeatmapManager.HeatmapPoint {
-                        x = det.box.center.x / screenWidth, 
-                        y = det.box.center.y / screenWidth, 
+                    if (risk > yoloMaxRisk) yoloMaxRisk = risk;
+
+                    float ocupacaoObj = det.box.width / screenWidth;
+                    float xCenter = det.box.center.x / screenWidth;
+
+                    heatmapPoints.Add(new HeatmapManager.HeatmapPoint
+                    {
+                        x = xCenter,
+                        y = det.box.center.y / screenWidth,
                         size = ocupacaoObj,
-                        riskScore = detRisk
+                        riskScore = risk
                     });
 
-                    if (objetosMoveis.Contains(label) && ocupacaoObj > 0.2f)
+                    bool objetoMovel = objetosMoveis.Contains(label);
+                    bool estaNoCentro = xCenter > 0.25f && xCenter < 0.75f;
+
+                    if (objetoMovel && estaNoCentro && ocupacaoObj > 0.12f)
                     {
-                        temObjetoMovelPerto = true;
+                        temObjetoCriticoNaRota = true;
                     }
                 }
             }
 
             if (midasData.leftZoneDanger > 3.0f)
             {
-                pontosHeatmap.Add(new HeatmapManager.HeatmapPoint {
-                    x = 0.25f, y = 0.5f, size = 0.6f, riskScore = midasData.leftZoneDanger * 0.5f 
+                heatmapPoints.Add(new HeatmapManager.HeatmapPoint
+                {
+                    x = 0.25f,
+                    y = 0.5f,
+                    size = 0.6f,
+                    riskScore = midasData.leftZoneDanger * 0.5f
                 });
             }
 
             if (midasData.rightZoneDanger > 3.0f)
             {
-                pontosHeatmap.Add(new HeatmapManager.HeatmapPoint {
-                    x = 0.75f, y = 0.5f, size = 0.6f, riskScore = midasData.rightZoneDanger * 0.5f
+                heatmapPoints.Add(new HeatmapManager.HeatmapPoint
+                {
+                    x = 0.75f,
+                    y = 0.5f,
+                    size = 0.6f,
+                    riskScore = midasData.rightZoneDanger * 0.5f
                 });
             }
 
             if (midasData.dangerScore > 4.0f)
             {
-                pontosHeatmap.Add(new HeatmapManager.HeatmapPoint {
-                    x = 0.5f, y = 0.5f, size = 0.8f, riskScore = midasData.dangerScore * 0.6f 
+                heatmapPoints.Add(new HeatmapManager.HeatmapPoint
+                {
+                    x = 0.5f,
+                    y = 0.5f,
+                    size = 0.8f,
+                    riskScore = midasData.dangerScore * 0.6f
                 });
             }
 
-            if (heatmapManager != null) heatmapManager.UpdateHeatmap(pontosHeatmap);
-
-            float riscoInstantaneo = (midasData.dangerScore * 0.7f) + (yoloMaxRisk * 0.5f);
-            float bloqueioGeralInstantaneo = (midasData.leftZoneDanger + midasData.rightZoneDanger + midasData.dangerScore) / 3f;
-
-            if (midasData.dangerScore >= 4.5f)
+            if (heatmapManager != null)
             {
-                if (bloqueioGeralInstantaneo >= 5.5f) dimensaoInstantanea = Mathf.Max(dimensaoInstantanea, 5f);
-                else if (bloqueioGeralInstantaneo >= 4.0f) dimensaoInstantanea = Mathf.Max(dimensaoInstantanea, 3f);
+                heatmapManager.UpdateHeatmap(heatmapPoints);
             }
 
-            // OTIMIZAÇÃO: Reflexo de emergência mais rigoroso
-            if (midasData.absoluteVelocityAlert && riscoInstantaneo > 7.0f)
+            var scores = InicializarPontuacoes();
+            var intencao = Guia.EstadoInstrucao.Nenhum;
+            if (NavigationManager.Instance != null && NavigationManager.Instance.isNavigating)
             {
-                LimparBuffer(); 
-                emEscapatoria = false; 
-                bool esqL = midasData.leftZoneDanger < 6.0f;
-                bool dirL = midasData.rightZoneDanger < 6.0f;
-                if (!esqL && !dirL) return Guia.EstadoInstrucao.Parar;
-                if (esqL && dirL) return midasData.leftZoneDanger < midasData.rightZoneDanger ? Guia.EstadoInstrucao.DesviarEsquerda : Guia.EstadoInstrucao.DesviarDireita;
-                else return esqL ? Guia.EstadoInstrucao.DesviarEsquerda : Guia.EstadoInstrucao.DesviarDireita;
+                intencao = AplicarIntencaoGPS(scores, anguloRelativo, midasData.dangerScore);
             }
 
-            historicoFrames.Enqueue(new DadosFrame {
-                riscoCombinado = riscoInstantaneo, perigoEsq = midasData.leftZoneDanger,
-                perigoDir = midasData.rightZoneDanger, dimensao = dimensaoInstantanea, bloqueioGeral = bloqueioGeralInstantaneo
-            });
-
-            if (historicoFrames.Count > tamanhoBuffer) historicoFrames.Dequeue();
-
-            float avgRisco = historicoFrames.Average(f => f.riscoCombinado);
-            float avgEsq = historicoFrames.Average(f => f.perigoEsq);
-            float avgDir = historicoFrames.Average(f => f.perigoDir);
-            float avgDimensao = historicoFrames.Max(f => f.dimensao); 
-            float avgBloqueioGeral = historicoFrames.Average(f => f.bloqueioGeral);
-
-            bool isEspacoAberto = (avgEsq < 4.0f && avgDir < 4.0f);
-            bool esqLivre = avgEsq < 6.0f;
-            bool dirLivre = avgDir < 6.0f;
-
-            if (emEscapatoria)
+            if (midasData.dangerScore > 6.0f)
             {
-                if (avgRisco < thresholdAcao && (esqLivre || dirLivre))
+                scores[Guia.EstadoInstrucao.Frente1] -= extremeFrontPenalty;
+                scores[Guia.EstadoInstrucao.Frente2] -= extremeFrontPenalty;
+                scores[Guia.EstadoInstrucao.Frente3] -= extremeFrontPenalty;
+                scores[Guia.EstadoInstrucao.Frente4] -= extremeFrontPenalty;
+            }
+
+            if (principalWidthRatio > 0f && principalWidthRatio < 0.3f)
+            {
+                bool rightObstacle = principalCenter >= 0.5f;
+                if (rightObstacle && midasData.leftZoneDanger < leftBlockThreshold)
                 {
-                    emEscapatoria = false; 
+                    scores[Guia.EstadoInstrucao.DesviarEsquerda] += narrowObstacleBonus;
+                    Debug.Log($"[Decision - Heurística] Desvio de Objeto Estreito detectado ({principalLabel}, largura {principalWidthRatio:P0}). Aplicando bônus a DesviarEsq.");
+                }
+                else if (!rightObstacle && midasData.rightZoneDanger < rightBlockThreshold)
+                {
+                    scores[Guia.EstadoInstrucao.DesviarDireita] += narrowObstacleBonus;
+                    Debug.Log($"[Decision - Heurística] Desvio de Objeto Estreito detectado ({principalLabel}, largura {principalWidthRatio:P0}). Aplicando bônus a DesviarDir.");
+                }
+            }
+
+            if (principalWidthRatio > 0.5f || Mathf.Abs(anguloRelativo) > largeTurnThreshold)
+            {
+                bool preferRight = principalWidthRatio > 0.5f ? principalCenter < 0.5f : anguloRelativo > 0f;
+                if (preferRight)
+                {
+                    scores[Guia.EstadoInstrucao.GirarDireita] += turnBonus;
+                    Debug.Log($"[Decision - Heurística] Giro por Objeto Largo ou GPS >45° ({principalLabel}, largura {principalWidthRatio:P0}, ângulo {anguloRelativo:F0}°). Aplicando bônus a GirarDir.");
                 }
                 else
                 {
-                    if (historicoFrames.Count >= tamanhoBuffer / 2)
-                    {
-                        if (avgBloqueioGeral < bloqueioAntesDoGiro)
-                        {
-                            bloqueioAntesDoGiro = avgBloqueioGeral;
-                            LimparBuffer();
-                            return girouParaEsquerda ? Guia.EstadoInstrucao.GirarEsquerda : Guia.EstadoInstrucao.GirarDireita;
-                        }
-                        else
-                        {
-                            emEscapatoria = false;
-                            LimparBuffer();
-                            return girouParaEsquerda ? Guia.EstadoInstrucao.GirarDireita : Guia.EstadoInstrucao.GirarEsquerda;
-                        }
-                    }
-                    else return Guia.EstadoInstrucao.Nenhum;
+                    scores[Guia.EstadoInstrucao.GirarEsquerda] += turnBonus;
+                    Debug.Log($"[Decision - Heurística] Giro por Objeto Largo ou GPS >45° ({principalLabel}, largura {principalWidthRatio:P0}, ângulo {anguloRelativo:F0}°). Aplicando bônus a GirarEsq.");
                 }
             }
 
-            // =========================================================================
-            // SOBREPOSIÇÃO DO GPS E PRIORIDADE ROTACIONAL (OTIMIZADA)
-            // =========================================================================
-            if (avgRisco < 4.0f && NavigationManager.Instance != null && NavigationManager.Instance.isNavigating)
+            bool temPoliticaDeSeguranca = false;
+            string overrideReason = string.Empty;
+            AplicarPenalidadesDeSeguranca(scores, midasData, temObjetoCriticoNaRota, ref overrideReason, intencao, principalLabel, ref temPoliticaDeSeguranca);
+
+            if (temObjetoCriticoNaRota && string.IsNullOrEmpty(motivoSemantico))
             {
-                float anguloRelativo = NavigationManager.Instance.anguloRelativoAoDestino;
-
-                if (anguloRelativo != 0f)
-                {
-                    // O GPS exige uma manobra grande (curva ou retorno)
-                    if (Mathf.Abs(anguloRelativo) > 90f)
-                    {
-                        if (temObjetoMovelPerto) return Guia.EstadoInstrucao.Parar;
-                        
-                        // IA verifica se a curva é segura fisicamente
-                        if (anguloRelativo > 0 && avgDir < 4.0f) 
-                        {
-                            LimparBuffer();
-                            return Guia.EstadoInstrucao.GirarDireita;
-                        }
-                        if (anguloRelativo < 0 && avgEsq < 4.0f) 
-                        {
-                            LimparBuffer();
-                            return Guia.EstadoInstrucao.GirarEsquerda;
-                        }
-                        
-                        return Guia.EstadoInstrucao.Parar; // Espera o lado liberar
-                    }
-
-                    // O GPS pede apenas uma correção de rota leve (ex: contornar uma pequena praça)
-                    if (anguloRelativo > 0f && avgDir < 4.5f) 
-                    {
-                        return Guia.EstadoInstrucao.DesviarDireita; 
-                    }
-                    if (anguloRelativo < 0f && avgEsq < 4.5f) 
-                    {
-                        return Guia.EstadoInstrucao.DesviarEsquerda; 
-                    }
-                }
+                motivoSemantico = principalLabel;
             }
 
-            if (avgRisco >= thresholdAcao)
+            var vencedor = scores.OrderByDescending(kv => kv.Value)
+                                .ThenBy(kv => (int)kv.Key)
+                                .Select(kv => kv.Key)
+                                .FirstOrDefault();
+
+            if (vencedor == Guia.EstadoInstrucao.Nenhum)
             {
-                if (!esqLivre && !dirLivre)
-                {
-                    emEscapatoria = true;
-                    bloqueioAntesDoGiro = avgBloqueioGeral;
-                    girouParaEsquerda = avgEsq < avgDir;
-                    LimparBuffer(); 
-                    return girouParaEsquerda ? Guia.EstadoInstrucao.GirarEsquerda : Guia.EstadoInstrucao.GirarDireita;
-                }
-
-                bool fugirParaEsquerda = false;
-                if (esqLivre && dirLivre) fugirParaEsquerda = avgEsq < avgDir;
-                else if (esqLivre) fugirParaEsquerda = true;
-                else fugirParaEsquerda = false;
-
-                Guia.EstadoInstrucao acaoEscolhida;
-
-                if (!isEspacoAberto)
-                {
-                    if (avgDimensao < 2.0f) acaoEscolhida = fugirParaEsquerda ? Guia.EstadoInstrucao.DesviarEsquerda : Guia.EstadoInstrucao.DesviarDireita;
-                    else acaoEscolhida = fugirParaEsquerda ? Guia.EstadoInstrucao.GirarEsquerda : Guia.EstadoInstrucao.GirarDireita;
-                }
-                else
-                {
-                    if (avgDimensao >= 2.5f) acaoEscolhida = fugirParaEsquerda ? Guia.EstadoInstrucao.GirarEsquerda : Guia.EstadoInstrucao.GirarDireita;
-                    else acaoEscolhida = fugirParaEsquerda ? Guia.EstadoInstrucao.DesviarEsquerda : Guia.EstadoInstrucao.DesviarDireita;
-                }
-
-                LimparBuffer();
-                return acaoEscolhida;
+                vencedor = EscolherFrentePorPerigo(midasData.dangerScore);
             }
 
-            if (avgRisco < 2.0f) return Guia.EstadoInstrucao.Frente4;
-            else if (avgRisco < 3.2f) return Guia.EstadoInstrucao.Frente3;
-            else if (avgRisco < 4.2f) return Guia.EstadoInstrucao.Frente2;
-            else return Guia.EstadoInstrucao.Frente1;
+            if (vencedor != intencao && !string.IsNullOrEmpty(overrideReason))
+            {
+                if (string.IsNullOrEmpty(motivoSemantico))
+                    motivoSemantico = principalLabel;
+                Debug.Log($"[Decision - Override] Intenção era {FormatarRotulo(intencao)} (Ângulo {anguloRelativo:F0}°), mas {overrideReason}. Pontuação recalculada. Vencedora do Frame: {FormatarRotulo(vencedor)}.");
+            }
+
+            var pacote = new DecisaoPacote
+            {
+                comando = vencedor,
+                motivoSemantico = motivoSemantico
+            };
+
+            RegistrarVitoria(pacote);
+            return pacote;
+        }
+
+        private Dictionary<Guia.EstadoInstrucao, float> InicializarPontuacoes()
+        {
+            return new Dictionary<Guia.EstadoInstrucao, float>
+            {
+                { Guia.EstadoInstrucao.Nenhum, 0f },
+                { Guia.EstadoInstrucao.Parar, 0f },
+                { Guia.EstadoInstrucao.DesviarDireita, 0f },
+                { Guia.EstadoInstrucao.DesviarEsquerda, 0f },
+                { Guia.EstadoInstrucao.GirarDireita, 0f },
+                { Guia.EstadoInstrucao.GirarEsquerda, 0f },
+                { Guia.EstadoInstrucao.Frente1, 0f },
+                { Guia.EstadoInstrucao.Frente2, 0f },
+                { Guia.EstadoInstrucao.Frente3, 0f },
+                { Guia.EstadoInstrucao.Frente4, 0f },
+            };
+        }
+
+        private Guia.EstadoInstrucao AplicarIntencaoGPS(Dictionary<Guia.EstadoInstrucao, float> scores, float anguloRelativo, float dangerScore)
+        {
+            if (Mathf.Approximately(anguloRelativo, 0f) || Mathf.Abs(anguloRelativo) <= straightThreshold)
+            {
+                var frente = EscolherFrentePorPerigo(dangerScore);
+                scores[frente] += intentionBonus;
+                return frente;
+            }
+
+            if (anguloRelativo > largeTurnThreshold)
+            {
+                scores[Guia.EstadoInstrucao.GirarDireita] += intentionBonus;
+                return Guia.EstadoInstrucao.GirarDireita;
+            }
+
+            if (anguloRelativo < -largeTurnThreshold)
+            {
+                scores[Guia.EstadoInstrucao.GirarEsquerda] += intentionBonus;
+                return Guia.EstadoInstrucao.GirarEsquerda;
+            }
+
+            if (anguloRelativo > smallTurnThreshold)
+            {
+                scores[Guia.EstadoInstrucao.DesviarDireita] += intentionBonus;
+                return Guia.EstadoInstrucao.DesviarDireita;
+            }
+
+            if (anguloRelativo < -smallTurnThreshold)
+            {
+                scores[Guia.EstadoInstrucao.DesviarEsquerda] += intentionBonus;
+                return Guia.EstadoInstrucao.DesviarEsquerda;
+            }
+
+            var fallbackFrente = EscolherFrentePorPerigo(dangerScore);
+            scores[fallbackFrente] += intentionBonus;
+            return fallbackFrente;
+        }
+
+        private void AplicarPenalidadesDeSeguranca(Dictionary<Guia.EstadoInstrucao, float> scores, MidasResult midasData, bool temObjetoCriticoNaRota, ref string overrideReason, Guia.EstadoInstrucao intencao, string principalLabel, ref bool temPoliticaDeSeguranca)
+        {
+            bool rightBlocked = midasData.rightZoneDanger > rightBlockThreshold;
+            bool leftBlocked = midasData.leftZoneDanger > leftBlockThreshold;
+
+            if (rightBlocked)
+            {
+                scores[Guia.EstadoInstrucao.GirarDireita] -= sideBlockPenalty;
+                scores[Guia.EstadoInstrucao.DesviarDireita] -= partialSidePenalty;
+                scores[Guia.EstadoInstrucao.DesviarEsquerda] += safetyBonus;
+                if (intencao == Guia.EstadoInstrucao.GirarDireita || intencao == Guia.EstadoInstrucao.DesviarDireita)
+                {
+                    overrideReason = $"Dir está bloqueada (MiDaS: {midasData.rightZoneDanger:F1})";
+                    temPoliticaDeSeguranca = true;
+                }
+            }
+
+            if (leftBlocked)
+            {
+                scores[Guia.EstadoInstrucao.GirarEsquerda] -= sideBlockPenalty;
+                scores[Guia.EstadoInstrucao.DesviarEsquerda] -= partialSidePenalty;
+                scores[Guia.EstadoInstrucao.DesviarDireita] += safetyBonus;
+                if (intencao == Guia.EstadoInstrucao.GirarEsquerda || intencao == Guia.EstadoInstrucao.DesviarEsquerda)
+                {
+                    overrideReason = $"Esq está bloqueada (MiDaS: {midasData.leftZoneDanger:F1})";
+                    temPoliticaDeSeguranca = true;
+                }
+            }
+
+            if (midasData.dangerScore > 5.0f)
+            {
+                scores[Guia.EstadoInstrucao.Frente4] -= frontPenalty;
+                scores[Guia.EstadoInstrucao.Frente3] -= frontPenalty * 0.8f;
+                scores[Guia.EstadoInstrucao.Frente2] -= frontPenalty * 0.5f;
+                scores[Guia.EstadoInstrucao.Frente1] -= frontPenalty * 0.2f;
+                if (intencao.ToString().StartsWith("Frente"))
+                {
+                    overrideReason = $"Frente está perigosa (MiDaS: {midasData.dangerScore:F1})";
+                    temPoliticaDeSeguranca = true;
+                }
+            }
+
+            if (temObjetoCriticoNaRota)
+            {
+                scores[Guia.EstadoInstrucao.Frente4] -= objectRoutePenalty;
+                scores[Guia.EstadoInstrucao.Frente3] -= objectRoutePenalty * 0.7f;
+                scores[Guia.EstadoInstrucao.Frente2] -= objectRoutePenalty * 0.5f;
+                scores[Guia.EstadoInstrucao.Frente1] -= objectRoutePenalty * 0.2f;
+                scores[Guia.EstadoInstrucao.DesviarEsquerda] += objectRouteSafetyBonus;
+                scores[Guia.EstadoInstrucao.DesviarDireita] += objectRouteSafetyBonus;
+                if (intencao.ToString().StartsWith("Frente") && string.IsNullOrEmpty(overrideReason))
+                {
+                    overrideReason = $"obstáculo crítico na rota ({principalLabel})";
+                    temPoliticaDeSeguranca = true;
+                }
+            }
+        }
+
+        private Guia.EstadoInstrucao EscolherFrentePorPerigo(float dangerScore)
+        {
+            if (dangerScore < 2.0f) return Guia.EstadoInstrucao.Frente4;
+            if (dangerScore < 3.5f) return Guia.EstadoInstrucao.Frente3;
+            if (dangerScore < 5.0f) return Guia.EstadoInstrucao.Frente2;
+            return Guia.EstadoInstrucao.Frente1;
+        }
+
+        private void RegistrarVitoria(DecisaoPacote pacote)
+        {
+            frameWinners.Enqueue(pacote);
+            while (frameWinners.Count > consensoFrameCount)
+            {
+                frameWinners.Dequeue();
+            }
+        }
+
+        public DecisaoPacote ObterConsenso(out string placar)
+        {
+            placar = string.Empty;
+            if (frameWinners.Count == 0)
+            {
+                return new DecisaoPacote { comando = Guia.EstadoInstrucao.Nenhum, motivoSemantico = string.Empty };
+            }
+
+            var contagem = frameWinners
+                .GroupBy(x => x.comando)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var comandoFinal = contagem
+                .OrderByDescending(kv => kv.Value)
+                .ThenBy(kv => (int)kv.Key)
+                .Select(kv => kv.Key)
+                .First();
+
+            placar = string.Join(", ", contagem
+                .OrderByDescending(kv => kv.Value)
+                .Select(kv => $"{FormatarRotulo(kv.Key)} ({kv.Value} vitórias)"));
+
+            string motivoSemantico = frameWinners
+                .Reverse()
+                .FirstOrDefault(x => x.comando == comandoFinal && !string.IsNullOrEmpty(x.motivoSemantico))
+                .motivoSemantico;
+
+            return new DecisaoPacote
+            {
+                comando = comandoFinal,
+                motivoSemantico = motivoSemantico
+            };
+        }
+
+        public Guia.EstadoInstrucao ObterConsenso(out string placar, out string motivoSemantico)
+        {
+            DecisaoPacote pacote = ObterConsenso(out placar);
+            motivoSemantico = pacote.motivoSemantico;
+            return pacote.comando;
+        }
+
+        private string FormatarRotulo(Guia.EstadoInstrucao comando)
+        {
+            switch (comando)
+            {
+                case Guia.EstadoInstrucao.DesviarEsquerda: return "DesviarEsq";
+                case Guia.EstadoInstrucao.DesviarDireita: return "DesviarDir";
+                case Guia.EstadoInstrucao.GirarEsquerda: return "GirarEsq";
+                case Guia.EstadoInstrucao.GirarDireita: return "GirarDir";
+                case Guia.EstadoInstrucao.Frente1: return "Frente1";
+                case Guia.EstadoInstrucao.Frente2: return "Frente2";
+                case Guia.EstadoInstrucao.Frente3: return "Frente3";
+                case Guia.EstadoInstrucao.Frente4: return "Frente4";
+                default: return comando.ToString();
+            }
         }
     }
 }

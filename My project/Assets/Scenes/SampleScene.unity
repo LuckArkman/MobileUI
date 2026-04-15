@@ -2747,11 +2747,11 @@ MonoBehaviour:
   voiceFrente3: {fileID: 8300000, guid: 7cb0a5ca3f81be444b456e79de15404f, type: 3}
   voiceFrente4: {fileID: 8300000, guid: ad921b8b652da8a41bbbf6530dc8b9c0, type: 3}
   checkPoint0: {fileID: 0}
-  checkPoint1: {fileID: 0}
-  checkPoint2: {fileID: 0}
-  checkPoint3: {fileID: 0}
-  checkPoint4: {fileID: 0}
-  checkPoint5: {fileID: 0}
+  checkPoint1: {fileID: 8300000, guid: db8747c161bdb3f4f89ea8ab3e99aa2d, type: 3}
+  checkPoint2: {fileID: 8300000, guid: 8056dac005191ad4597eaa426da04275, type: 3}
+  checkPoint3: {fileID: 8300000, guid: 986fc97cb4cb82f44ac1c7890039730a, type: 3}
+  checkPoint4: {fileID: 8300000, guid: 6c33eb17decbf08459c96c3362e61be2, type: 3}
+  checkPoint5: {fileID: 8300000, guid: f9f8020f68a519c4faf52364f468d0c9, type: 3}
   buzzerClip: {fileID: 0}
   buzzerPausaEntreBeeps: 0.25
   modoApresentacao: 1
@@ -2899,8 +2899,8 @@ MonoBehaviour:
   volumeMaster: 1
   tomVelocidade: 1
   graves: 1
-  medios: 1
-  agudos: 1
+  medios: 1.22
+  agudos: 1.59
 --- !u!1 &508700756
 GameObject:
   m_ObjectHideFlags: 0

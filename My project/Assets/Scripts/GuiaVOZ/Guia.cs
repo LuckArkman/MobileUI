@@ -277,7 +277,7 @@ namespace LuckArkman.XR.Main
             }
         }
 
-        public void ExecutarComando(EstadoInstrucao comandoDecidido, int passosObjeto = 0, string descricaoAmbiente = "")
+        public void ExecutarComando(EstadoInstrucao comandoDecidido, int passosObjeto = 0, string descricaoAmbiente = "", string motivoSemantico = "")
         {
             // Guard duplo: bloqueia durante a síntese ONNX, durante o áudio de sistema
             // ou durante a reprodução espacial já em andamento.
@@ -285,7 +285,7 @@ namespace LuckArkman.XR.Main
 
             if (Time.time >= proximoTempoDeFala && comandoDecidido != instrucaoAnterior)
             {
-                TocarComandoDeVoz(comandoDecidido, passosObjeto, descricaoAmbiente);
+                TocarComandoDeVoz(comandoDecidido, passosObjeto, descricaoAmbiente, motivoSemantico);
                 instrucaoAnterior = comandoDecidido;
             }
         }
@@ -321,9 +321,26 @@ namespace LuckArkman.XR.Main
             }
         }
 
-        private void TocarComandoDeVoz(EstadoInstrucao comando, int passosObjeto = 0, string descricaoAmbiente = "")
+        private void TocarComandoDeVoz(EstadoInstrucao comando, int passosObjeto = 0, string descricaoAmbiente = "", string motivoSemantico = "")
         {
             float tempoDesteComando = tempoEsperaAcao;
+
+            if (!string.IsNullOrWhiteSpace(motivoSemantico))
+            {
+                string fraseMotivo = comando switch
+                {
+                    EstadoInstrucao.GirarDireita => $"Gire à direita para evitar o {motivoSemantico}.",
+                    EstadoInstrucao.GirarEsquerda => $"Gire à esquerda para evitar o {motivoSemantico}.",
+                    EstadoInstrucao.DesviarDireita => $"Desvie levemente para a direita para evitar o {motivoSemantico}.",
+                    EstadoInstrucao.DesviarEsquerda => $"Desvie levemente para a esquerda para evitar o {motivoSemantico}.",
+                    _ => $"Evite o {motivoSemantico}."
+                };
+
+                if (string.IsNullOrWhiteSpace(descricaoAmbiente))
+                    descricaoAmbiente = fraseMotivo;
+                else
+                    descricaoAmbiente = fraseMotivo + " " + descricaoAmbiente;
+            }
 
             bool temDescricaoMidas = !string.IsNullOrWhiteSpace(descricaoAmbiente);
 
