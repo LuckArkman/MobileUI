@@ -1890,6 +1890,7 @@ MonoBehaviour:
   hudController: {fileID: 82645042}
   batteryOptimizer: {fileID: 1323550136}
   sistemaGuia: {fileID: 462482248}
+  routeProgress: {fileID: 0}
 --- !u!114 &310325651
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2705,6 +2706,7 @@ GameObject:
   - component: {fileID: 462482251}
   - component: {fileID: 462482250}
   - component: {fileID: 462482253}
+  - component: {fileID: 462482254}
   m_Layer: 0
   m_Name: Guia
   m_TagString: Untagged
@@ -2901,6 +2903,28 @@ MonoBehaviour:
   graves: 1
   medios: 1.22
   agudos: 1.59
+--- !u!114 &462482254
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 462482247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8620d8c4be2e29d45baec1ae29a6c027, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.RouteProgressManager
+  guia: {fileID: 462482248}
+  totalCheckPoints: 6
+  saveKey: GuiaRouteProgress
+  resetarProgressoAoIniciar: 1
+  autoAvancarCheckPoint: 1
+  tempoEntreCheckPoints: 3
+  limiarObstaculo: 6
+  framesConsecutivosParaEvasao: 5
+  timeoutEvasao: 8
+  evasaoAtivaNaModoApresentacao: 1
 --- !u!1 &508700756
 GameObject:
   m_ObjectHideFlags: 0
@@ -3418,7 +3442,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &602488416
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3605,6 +3629,7 @@ MonoBehaviour:
   hudController: {fileID: 82645042}
   batteryOptimizer: {fileID: 1323550136}
   sistemaGuia: {fileID: 462482248}
+  routeProgress: {fileID: 0}
 --- !u!4 &608830361
 Transform:
   m_ObjectHideFlags: 0
@@ -3632,8 +3657,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 46bf4d4a3432f8f4b82f63fc29211d87, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Safety.Decision
-  thresholdAcao: 5
-  tamanhoBuffer: 10
+  consensoFrameCount: 14
+  intentionBonus: 50
+  safetyBonus: 30
+  turnBonus: 90
+  narrowObstacleBonus: 45
+  sideBlockPenalty: 100
+  partialSidePenalty: 70
+  frontPenalty: 35
+  extremeFrontPenalty: 1000
+  objectRoutePenalty: 20
+  objectRouteSafetyBonus: 15
+  rightBlockThreshold: 6
+  leftBlockThreshold: 6
+  largeTurnThreshold: 45
+  smallTurnThreshold: 15
+  straightThreshold: 15
   heatmapManager: {fileID: 0}
 --- !u!114 &608830364
 MonoBehaviour:
@@ -9210,7 +9249,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 5.2582, y: -55.9}
+  m_AnchoredPosition: {x: 5.2582, y: -55.899902}
   m_SizeDelta: {x: 376.3576, y: 67.69299}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1465778322
@@ -9792,7 +9831,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0.020019531, y: -0.049560547}
+  m_AnchoredPosition: {x: 0.020019531, y: -0.049804688}
   m_SizeDelta: {x: -1390, y: -2934.4}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1721789572

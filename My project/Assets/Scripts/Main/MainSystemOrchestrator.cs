@@ -27,7 +27,10 @@ namespace LuckArkman.XR.Main
         public BatteryOptimizer batteryOptimizer;
         
         [Header("Módulo de Saída")]
-        public Guia sistemaGuia; 
+        public Guia sistemaGuia;
+
+        [Tooltip("Gerenciador de progresso do roteiro e evasão de obstáculos.")]
+        public RouteProgressManager routeProgress;
 
         private SystemState currentState = SystemState.Idle;
         private float tempoDescansoManobra = 0f;
@@ -101,6 +104,11 @@ namespace LuckArkman.XR.Main
                 // Avança o relógio de frames
                 contadorFrames++;
                 if (contadorFrames >= 14) contadorFrames = 0;
+
+                // -- Alimenta o RouteProgressManager com os dados MiDaS mais recentes
+                // (monitoramento contínuo de obstáculos, independente do turno MiDaS/YOLO)
+                if (routeProgress != null)
+                    routeProgress.AtualizarDadosMidas(ultimoMidasData);
 
                 // ==============================================================
                 // TOMADA DE DECISÃO POR FRAME (pontuação + buffer temporal)
