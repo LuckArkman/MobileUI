@@ -29,22 +29,76 @@ namespace LuckArkman.XR.Main
 
         [Header("Sistema de Voz Guia (Fallback Físico)")]
         public AudioSource voiceAudioSource;
-        
+
+        [Tooltip("Desviar para a esquerda")]
         public AudioClip voiceMoveLeft;
+        [Tooltip("Desviar para a direita")]
         public AudioClip voiceMoveRight;
+        [Tooltip("Girar para a esquerda")]
         public AudioClip voiceTurnLeft;
+        [Tooltip("Girar para a direita")]
         public AudioClip voiceTurnRight;
+        [Tooltip("Parar")]
         public AudioClip voiceStop;
-        
+
         [Header("Vozes de Evasão Complexa")]
-        public AudioClip voiceMoveDoubleLeft;  
-        public AudioClip voiceMoveDoubleRight; 
+        [Tooltip("Frente + esquerda bloqueados: mover bastante para a direita")]
+        public AudioClip voiceMoveDoubleLeft;
+        [Tooltip("Frente + direita bloqueados: mover bastante para a esquerda")]
+        public AudioClip voiceMoveDoubleRight;
 
         [Header("Vozes de Progressão Frontal")]
+        [Tooltip("Frente 1: Espaço apertado ou baixa certeza de profundidade")]
         public AudioClip voiceFrente1;
-        public AudioClip voiceFrente2; 
-        public AudioClip voiceFrente3; 
-        public AudioClip voiceFrente4; 
+        [Tooltip("Frente 2: Espaço não tão fechado — dá para avançar com cuidado")]
+        public AudioClip voiceFrente2;
+        [Tooltip("Frente 3: Corredor ou ambiente livre com obstáculos afastados do centro")]
+        public AudioClip voiceFrente3;
+        [Tooltip("Frente 4 (Caminho Livre): Parque ou sala aberta — sem obstáculos relevantes")]
+        public AudioClip voiceFrente4;
+
+        // ====================================================================
+        // CHECK POINTS — Roteiro da Apresentação
+        // ====================================================================
+        [Header("CheckPoints — Roteiro de Apresentação")]
+        [Tooltip("CP0: Áudio inicial — apresenta o personagem Guia ao utilizador")]
+        public AudioClip checkPoint0;
+
+        [Tooltip("CP1: Tutorial — explica a mecânica do sistema de guia")]
+        public AudioClip checkPoint1;
+
+        [Tooltip("CP2: Progressão positiva A — elogio de avanço (variação 1)")]
+        public AudioClip checkPoint2;
+
+        [Tooltip("CP3: Progressão positiva B — elogio de avanço (variação 2)")]
+        public AudioClip checkPoint3;
+
+        [Tooltip("CP4: Progressão positiva C — elogio de avanço (variação 3)")]
+        public AudioClip checkPoint4;
+
+        [Tooltip("CP5: Encerramento — chegou ao ponto B / destino final")]
+        public AudioClip checkPoint5;
+
+        // ====================================================================
+        // BUZZER — Alertas de Sistema
+        // ====================================================================
+        [Header("Alertas de Sistema (Buzzer)")]
+        [Tooltip("Clip do beep simples. Será repetido N vezes com pausa entre bipes.")]
+        public AudioClip buzzerClip;
+
+        [Tooltip("Pausa em segundos entre cada bipe do buzzer")]
+        public float buzzerPausaEntreBeeps = 0.25f;
+
+        // ====================================================================
+        // MODO APRESENTAÇÃO — demo em ambiente controlado
+        // ====================================================================
+        [Header("Modo Apresentação (Demo Controlada)")]
+        [Tooltip(
+            "Quando activo: todos os comandos de navegação usam os AudioClips pré-gravados\n" +
+            "do Inspector em vez do motor TTS. Ideal para demonstrações públicas\n" +
+            "onde a latencia do ONNX ou a qualidade da voz podem ser um problema."
+        )]
+        public bool modoApresentacao = false; 
 
         [Header("Tempos Dinâmicos de Espera (Segundos)")]
         public float tempoEsperaParar = 1.0f;     
@@ -178,13 +232,27 @@ namespace LuckArkman.XR.Main
         {
             float tempoDesteComando = tempoEsperaAcao;
 
-            // Se o MiDaS já gerou uma descrição contextual do ambiente,
-            // ela tem prioridade sobre a frase padrão do comando.
             bool temDescricaoMidas = !string.IsNullOrWhiteSpace(descricaoAmbiente);
 
             // ===============================================
-            // LÓGICA 0: LLaMA LOCAL (Ollama no Notebook)
+            // LÓGICA -1: MODO APRESENTAÇÃO (Demo Controlada)
+            // Maior prioridade — usado em demonstrações públicas.
+            // Usa AudioClips pré-gravados do Inspector em vez do TTS.
             // ===============================================
+            if (modoApresentacao)
+            {
+                AudioClip clipDemo = ObterClipDeApresentacao(comando);
+                if (clipDemo != null && spatialAudio != null)
+                {
+                    spatialAudio.ReproduziirClipFallback(clipDemo, comando);
+                    proximoTempoDeFala = Time.time + tempoDesteComando;
+                    Debug.Log($"[DEMO] Clip pré-gravado: {comando} → '{clipDemo.name}'");
+                }
+                return;
+            }
+
+            // ===============================================
+            // LÓGICA 0: LLaMA LOCAL (Ollama no Notebook)
             if (usarLlamaText)
             {
                 string textoPassosLlama = (passosObjeto == 1) ? "1 paso" : $"{passosObjeto} pasos";
@@ -504,7 +572,127 @@ namespace LuckArkman.XR.Main
             }
         }
 
-        // FIX ERRO 3: Ciclo de vida correto — para todas as corrotinas TTS ativas
+        // ====================================================================
+        // MODO APRESENTAÇÃO — mapeamento de comandos para clips pré-gravados
+        // ====================================================================
+
+        /// <summary>
+        /// Devolve o AudioClip pré-gravado correspondente ao comando de navegação.
+        /// Usado exclusivamente quando modoApresentacao = true.
+        /// </summary>
+        private AudioClip ObterClipDeApresentacao(EstadoInstrucao comando)
+        {
+            switch (comando)
+            {
+                case EstadoInstrucao.Parar:                return voiceStop;
+                case EstadoInstrucao.GirarDireita:         return voiceTurnRight;
+                case EstadoInstrucao.GirarEsquerda:        return voiceTurnLeft;
+                case EstadoInstrucao.DesviarDireita:       return voiceMoveRight;
+                case EstadoInstrucao.DesviarEsquerda:      return voiceMoveLeft;
+                case EstadoInstrucao.DesviarDuploDireita:  return voiceMoveDoubleRight;
+                case EstadoInstrucao.DesviarDuploEsquerda: return voiceMoveDoubleLeft;
+                case EstadoInstrucao.Frente1:              return voiceFrente1;
+                case EstadoInstrucao.Frente2:              return voiceFrente2;
+                case EstadoInstrucao.Frente3:              return voiceFrente3;
+                case EstadoInstrucao.Frente4:              return voiceFrente4; // Caminho Livre
+                default:                                   return null;
+            }
+        }
+
+        // ====================================================================
+        // CHECK POINTS — API pública para o roteiro da apresentação
+        // ====================================================================
+
+        /// <summary>
+        /// Reproduz o CheckPoint pelo índice (0–5).
+        /// Tem prioridade sobre qualquer áudio em curso — interrompe o TTS activo.
+        /// <para>
+        /// 0 = Apresentação do Guia<br/>
+        /// 1 = Tutorial da mecânica<br/>
+        /// 2 = Progressão positiva A<br/>
+        /// 3 = Progressão positiva B<br/>
+        /// 4 = Progressão positiva C<br/>
+        /// 5 = Encerramento (chegou ao destino)
+        /// </para>
+        /// </summary>
+        public void TocarCheckPoint(int indice)
+        {
+            AudioClip[] cps = { checkPoint0, checkPoint1, checkPoint2,
+                                checkPoint3, checkPoint4, checkPoint5 };
+
+            if (indice < 0 || indice >= cps.Length)
+            {
+                Debug.LogWarning($"[Guia] TocarCheckPoint: índice {indice} inválido (0–5).");
+                return;
+            }
+
+            AudioClip clip = cps[indice];
+            if (clip == null)
+            {
+                Debug.LogWarning($"[Guia] TocarCheckPoint: clip CP{indice} não atribuído no Inspector.");
+                return;
+            }
+
+            // CheckPoints têm PRIORIDADE MÁXIMA — interrompem o TTS activo
+            _ttsOcupado = false;
+            StopAllCoroutines();
+
+            if (spatialAudio != null)
+                spatialAudio.PararAudio();
+
+            // Reproduz directamente no voiceAudioSource (bypass do SpatialAudio)
+            if (voiceAudioSource != null)
+            {
+                voiceAudioSource.clip = clip;
+                voiceAudioSource.Play();
+                Debug.Log($"[Guia] ▶ CheckPoint {indice}: '{clip.name}' ({clip.length:F1}s)");
+            }
+            else
+            {
+                Debug.LogWarning("[Guia] voiceAudioSource não atribuído — CP não reproduzido.");
+            }
+        }
+
+        // ====================================================================
+        // BUZZER — Alertas de Sistema
+        // ====================================================================
+
+        /// <summary>
+        /// Toca N bipes do buzzer com pausa configurável entre cada um.
+        /// <para>
+        /// 2 bipes = Falha do ESP32 / câmera do celular activada como fallback<br/>
+        /// 3 bipes = Sinal de internet (hotspot) perdido
+        /// </para>
+        /// </summary>
+        public void TocarBuzzer(int numBipes)
+        {
+            if (buzzerClip == null)
+            {
+                Debug.LogWarning("[Guia] buzzerClip não atribuído no Inspector.");
+                return;
+            }
+            if (numBipes <= 0) return;
+
+            StartCoroutine(SequenciaBuzzer(numBipes));
+        }
+
+        private IEnumerator SequenciaBuzzer(int numBipes)
+        {
+            Debug.Log($"[Guia] 🔔 Buzzer × {numBipes}: " +
+                      (numBipes == 2 ? "Falha ESP32 / fallback câmera" :
+                       numBipes == 3 ? "Internet perdida" : "Alerta sistema"));
+
+            for (int i = 0; i < numBipes; i++)
+            {
+                if (voiceAudioSource != null)
+                {
+                    voiceAudioSource.PlayOneShot(buzzerClip);
+                }
+                yield return new WaitForSeconds(buzzerClip.length + buzzerPausaEntreBeeps);
+            }
+        }
+
+        // Ciclo de vida correto — para todas as corrotinas TTS ativas
         // e destrói o AudioClip dinâmico para liberar os native handles de memória
         // antes que o domain reload invalide os GC handles pendentes.
         private void OnDisable()
