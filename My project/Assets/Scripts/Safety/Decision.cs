@@ -33,6 +33,21 @@ namespace LuckArkman.XR.Safety
         public float smallTurnThreshold = 15f;
         public float straightThreshold = 15f;
 
+        [Header("Calibração de Câmara")]
+        [Tooltip(
+            "Inverte os comandos de Esquerda/Direita em todo o pipeline de decisão.\n" +
+            "Ative quando a câmara do dispositivo estiver espelhada horizontalmente\n" +
+            "e os comandos de desvio estiverem trocados."
+        )]
+        public bool inverterEixoXCamera = false;
+
+        [Header("Rastreamento de Rota")]
+        [Tooltip("Arraste o RouteProgressTracker que contém os waypoints da rota aqui.")]
+        public LuckArkman.XR.Navigation.RouteProgressTracker routeTracker;
+
+        [Tooltip("Transform do utilizador/dispositivo usado para calcular a direção ao próximo waypoint.")]
+        public Transform userTransform;
+
         [Header("Integração Visual")]
         public HeatmapManager heatmapManager;
 
@@ -56,10 +71,33 @@ namespace LuckArkman.XR.Safety
 
         public DecisaoPacote AvaliarCenario(List<DetectionResult> yoloDetections, MidasResult midasData, int screenWidth)
         {
+            // ── Calcula ângulo de navegação ao próximo waypoint ────────────────────────
             float anguloRelativo = 0f;
-            if (NavigationManager.Instance != null && NavigationManager.Instance.isNavigating)
+
+            if (routeTracker != null && !routeTracker.IsRouteComplete &&
+                routeTracker.CurrentWaypoint != null && userTransform != null)
+            {
+                // Direção ao próximo waypoint no plano horizontal
+                Vector3 dirWaypoint = routeTracker.CurrentWaypoint.position - userTransform.position;
+                dirWaypoint.y = 0f;
+
+                // Ângulo assinado: positivo = waypoint à direita, negativo = à esquerda
+                anguloRelativo = Vector3.SignedAngle(
+                    userTransform.forward,
+                    dirWaypoint.normalized,
+                    Vector3.up
+                );
+
+                // Aplica inversão de eixo se câmara estiver espelhada
+                if (inverterEixoXCamera) anguloRelativo = -anguloRelativo;
+
+                Debug.Log($"[Decision] Waypoint {routeTracker.currentWaypointIndex + 1}: " +
+                          $"ângulo={anguloRelativo:F1}° | dist={routeTracker.GetDistanceToCurrentWaypoint():F1}m");
+            }
+            else if (NavigationManager.Instance != null && NavigationManager.Instance.isNavigating)
             {
                 anguloRelativo = NavigationManager.Instance.anguloRelativoAoDestino;
+                if (inverterEixoXCamera) anguloRelativo = -anguloRelativo;
             }
 
             string motivoSemantico = string.Empty;
@@ -164,31 +202,38 @@ namespace LuckArkman.XR.Safety
 
             if (principalWidthRatio > 0f && principalWidthRatio < 0.3f)
             {
-                bool rightObstacle = principalCenter >= 0.5f;
+                // Aplica inversão de eixo X se necessário
+                float centerCorrigido = inverterEixoXCamera ? (1f - principalCenter) : principalCenter;
+                bool rightObstacle = centerCorrigido >= 0.5f;
+
                 if (rightObstacle && midasData.leftZoneDanger < leftBlockThreshold)
                 {
                     scores[Guia.EstadoInstrucao.DesviarEsquerda] += narrowObstacleBonus;
-                    Debug.Log($"[Decision - Heurística] Desvio de Objeto Estreito detectado ({principalLabel}, largura {principalWidthRatio:P0}). Aplicando bônus a DesviarEsq.");
+                    Debug.Log($"[Decision] Objeto estreito à DIREITA ({principalLabel} {principalWidthRatio:P0}) → Desviar para Esquerda");
                 }
                 else if (!rightObstacle && midasData.rightZoneDanger < rightBlockThreshold)
                 {
                     scores[Guia.EstadoInstrucao.DesviarDireita] += narrowObstacleBonus;
-                    Debug.Log($"[Decision - Heurística] Desvio de Objeto Estreito detectado ({principalLabel}, largura {principalWidthRatio:P0}). Aplicando bônus a DesviarDir.");
+                    Debug.Log($"[Decision] Objeto estreito à ESQUERDA ({principalLabel} {principalWidthRatio:P0}) → Desviar para Direita");
                 }
             }
 
             if (principalWidthRatio > 0.5f || Mathf.Abs(anguloRelativo) > largeTurnThreshold)
             {
-                bool preferRight = principalWidthRatio > 0.5f ? principalCenter < 0.5f : anguloRelativo > 0f;
+                // Para objecto largo: o utilizador deve girar para o lado oposto ao objecto
+                // Para GPS: positivo = waypoint à direita = girar direita
+                float centerCorrigido2 = inverterEixoXCamera ? (1f - principalCenter) : principalCenter;
+                bool preferRight = principalWidthRatio > 0.5f ? centerCorrigido2 < 0.5f : anguloRelativo > 0f;
+
                 if (preferRight)
                 {
                     scores[Guia.EstadoInstrucao.GirarDireita] += turnBonus;
-                    Debug.Log($"[Decision - Heurística] Giro por Objeto Largo ou GPS >45° ({principalLabel}, largura {principalWidthRatio:P0}, ângulo {anguloRelativo:F0}°). Aplicando bônus a GirarDir.");
+                    Debug.Log($"[Decision] Giro DIREITA: lab={principalLabel} largura={principalWidthRatio:P0} ângulo={anguloRelativo:F0}°");
                 }
                 else
                 {
                     scores[Guia.EstadoInstrucao.GirarEsquerda] += turnBonus;
-                    Debug.Log($"[Decision - Heurística] Giro por Objeto Largo ou GPS >45° ({principalLabel}, largura {principalWidthRatio:P0}, ângulo {anguloRelativo:F0}°). Aplicando bônus a GirarEsq.");
+                    Debug.Log($"[Decision] Giro ESQUERDA: lab={principalLabel} largura={principalWidthRatio:P0} ângulo={anguloRelativo:F0}°");
                 }
             }
 

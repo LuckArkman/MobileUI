@@ -208,8 +208,10 @@ namespace LuckArkman.XR.AI
 
     // ============================================================
     // JOB 2: Processa cada linha da imagem 256x256 em paralelo.
-    // IJobParallelFor divide automaticamente as 256 linhas entre
-    // os Worker Threads do Unity (normalmente 4–8 em mobile mid-end).
+    // CORRECÇÃO: MiDaS retorna PROFUNDIDADE INVERSA:
+    //   valor alto  = pixel LONGE   = sem perigo
+    //   valor baixo = pixel PERTO   = PERIGO
+    // Portanto perigo = 1.0 - (depth / maxDepth)
     // ============================================================
     [BurstCompile]
     struct MidasZoneJob : IJobParallelFor
@@ -218,12 +220,14 @@ namespace LuckArkman.XR.AI
         [ReadOnly]  public NativeArray<float> maxDepth;  // lê maxDepthOut[0]
         public int tensorSize;
 
-        // Acumuladores por linha (índice = linha Y)
+        // Quando 1: troca as zonas Esq <-> Dir (correção de espelho da câmara)
+        public int inverterEixoX; // 0=normal, 1=invertido
+
+        // Acumuladores por linha (index = linha Y)
         [WriteOnly] public NativeArray<float> linhaEsquerda;
         [WriteOnly] public NativeArray<float> linhaDireita;
         [WriteOnly] public NativeArray<float> linhaCentral;
 
-        // Contadores por linha
         [WriteOnly] public NativeArray<int> countEsq;
         [WriteOnly] public NativeArray<int> countDir;
         [WriteOnly] public NativeArray<int> countCen;
@@ -234,25 +238,35 @@ namespace LuckArkman.XR.AI
             int cE = 0, cD = 0, cC = 0;
 
             float maxD = maxDepth[0];
+            if (maxD < 0.0001f) maxD = 0.0001f;
             int terco = tensorSize / 3;
+            // Zona frontal: apenas metade inferior da imagem (evita teto)
+            bool linhaFrontal = y > tensorSize / 2;
 
             for (int x = 0; x < tensorSize; x++)
             {
-                float pixelDepth = depthArray[y * tensorSize + x] / maxD;
-                if (pixelDepth > 1f) pixelDepth = 1f;
+                float normalizado = depthArray[y * tensorSize + x] / maxD;
+                if (normalizado > 1f) normalizado = 1f;
 
-                if (x < terco)
+                // Perigo = inverso da profundidade:
+                // perto (low depth) -> alto perigo | longe (high depth) -> baixo perigo
+                float perigo = 1f - normalizado;
+
+                // Aplica espelho de eixo X se necessário
+                int xReal = (inverterEixoX == 1) ? (tensorSize - 1 - x) : x;
+
+                if (xReal < terco)
                 {
-                    somaE += pixelDepth; cE++;
+                    somaE += perigo; cE++;
                 }
-                else if (x > terco * 2)
+                else if (xReal > terco * 2)
                 {
-                    somaD += pixelDepth; cD++;
+                    somaD += perigo; cD++;
                 }
 
-                if (x >= terco && x <= terco * 2 && y > tensorSize / 2)
+                if (xReal >= terco && xReal <= terco * 2 && linhaFrontal)
                 {
-                    somaC += pixelDepth; cC++;
+                    somaC += perigo; cC++;
                 }
             }
 
@@ -272,6 +286,14 @@ namespace LuckArkman.XR.AI
 
         [Header("Configurações Físicas")]
         public float velocityThreshold = 2.5f;
+
+        [Header("Calibração de Câmara")]
+        [Tooltip(
+            "Inverte os eixos Esquerda/Direita do mapa de profundidade.\n" +
+            "Ative se os comandos de evasão estiverem trocados (direita/esquerda invertidas).\n" +
+            "Causa comum: óculos com câmara espelhada horizontalmente."
+        )]
+        public bool inverterEixoX = false;
 
         private Model runtimeModel;
         private Worker engineWorker;
@@ -355,6 +377,7 @@ namespace LuckArkman.XR.AI
                 depthArray    = depthNative,
                 maxDepth      = maxDepthOut,
                 tensorSize    = TENSOR_SIZE,
+                inverterEixoX = inverterEixoX ? 1 : 0,
                 linhaEsquerda = linhaEsq,
                 linhaDireita  = linhaDir,
                 linhaCentral  = linhaCen,
