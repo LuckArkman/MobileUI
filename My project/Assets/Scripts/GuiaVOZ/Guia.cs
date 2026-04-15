@@ -138,10 +138,30 @@ namespace LuckArkman.XR.Main
             }
         }
 
+        /// <summary>
+        /// Entry point cuando el MiDaS tiene un resultado completo.
+        /// Genera automáticamente la descripción en español y la envía al Piper.
+        /// </summary>
+        public void ExecutarComandoComMidas(EstadoInstrucao comandoDecidido,
+                                            LuckArkman.XR.AI.MidasResult midasResult,
+                                            int passosObjeto = 0)
+        {
+            if (Time.time >= proximoTempoDeFala)
+            {
+                // O MiDaS gera a descrição do ambiente em espanhol infantil
+                string descricaoMidas = midasResult.GerarDescricaoEspanhol();
+                TocarComandoDeVoz(comandoDecidido, passosObjeto, descricaoMidas);
+                instrucaoAnterior = comandoDecidido;
+            }
+        }
+
         private void TocarComandoDeVoz(EstadoInstrucao comando, int passosObjeto = 0, string descricaoAmbiente = "")
         {
             float tempoDesteComando = tempoEsperaAcao;
-            // A direção do som é aplicada dentro de cada método da SpatialAudioGuide
+
+            // Se o MiDaS já gerou uma descrição contextual do ambiente,
+            // ela tem prioridade sobre a frase padrão do comando.
+            bool temDescricaoMidas = !string.IsNullOrWhiteSpace(descricaoAmbiente);
 
             // ===============================================
             // LÓGICA 0: LLaMA LOCAL (Ollama no Notebook)
@@ -162,7 +182,11 @@ namespace LuckArkman.XR.Main
             // ===============================================
             if (piperOnnxTTS != null)
             {
-                string frase = ObterFrasePadraoEspanholInfantil(comando, passosObjeto);
+                // Usa descrição contextual do MiDaS quando disponível
+                string frase = temDescricaoMidas
+                    ? descricaoAmbiente
+                    : ObterFrasePadraoEspanholInfantil(comando, passosObjeto);
+
                 piperOnnxTTS.Sintetizar(frase, (AudioClip clip) =>
                 {
                     if (clip != null && spatialAudio != null)
@@ -393,22 +417,48 @@ namespace LuckArkman.XR.Main
 
         private string ObterFrasePadraoEspanholInfantil(EstadoInstrucao comando, int passos)
         {
-            string fimPassos = passos > 0 ? (passos == 1 ? " en un pasito." : $" en {passos} pasos.") : ".";
+            // Sufixo de distância — usando diminutivos latinos (pasito, pasitos)
+            string sufixo = passos == 1 ? " en un pasito."
+                          : passos  > 1 ? $" en {passos} pasitos."
+                          : ".";
 
             switch (comando)
             {
-                case EstadoInstrucao.Parar:               return "¡Oh! Detente ahí, tenemos algo adelante.";
-                case EstadoInstrucao.GirarDireita:        return "Giremos hacia la derecha por favor.";
-                case EstadoInstrucao.GirarEsquerda:       return "Vamos hacia tu lado izquierdo, amigo mío.";
-                case EstadoInstrucao.DesviarDireita:      return "Un pequeño desvío hacia la derecha ahora.";
-                case EstadoInstrucao.DesviarEsquerda:     return "A tu izquierda, un ligero desvío.";
-                case EstadoInstrucao.DesviarDuploDireita: return "Movámonos hacia la derecha por precaución" + fimPassos;
-                case EstadoInstrucao.DesviarDuploEsquerda: return "Avancemos a la izquierda para cuidarte" + fimPassos;
-                case EstadoInstrucao.Frente1:             return "Todo despejado, sigue adelante con cuidado.";
-                case EstadoInstrucao.Frente2:             return "Podemos caminar tranquilos hacia adelante.";
-                case EstadoInstrucao.Frente3:             return "El camino al frente es hermoso y libre.";
-                case EstadoInstrucao.Frente4:             return "Aventura adelante, ¡está totalmente libre!";
-                default:                                  return "Caminando, paso a pasito.";
+                case EstadoInstrucao.Parar:
+                    return "¡Espera, espera! Hay algo justo enfrente. Mejor nos detenemos aquíto.";
+
+                case EstadoInstrucao.GirarDireita:
+                    return "¡Oye! Tenemos que girar hacia la derecha. ¡Así que vuelta, vuelta!";
+
+                case EstadoInstrucao.GirarEsquerda:
+                    return "¡Vamos! Hay que doblar por la izquierda. ¡Tú puedes, adelante!";
+
+                case EstadoInstrucao.DesviarDireita:
+                    return "¡Psst! Mueve un poquito hacia la derecha, ándale.";
+
+                case EstadoInstrucao.DesviarEsquerda:
+                    return "¡Psst! Deslizámonos un poquito a la izquierda, con calma.";
+
+                case EstadoInstrucao.DesviarDuploDireita:
+                    return "¡Uy, uy! Mueve bastante hacia la derecha" + sufixo;
+
+                case EstadoInstrucao.DesviarDuploEsquerda:
+                    return "¡Uy, uy! Hay que moverse harto hacia la izquierda" + sufixo;
+
+                case EstadoInstrucao.Frente1:
+                    return "¡Perfecto! El camino está libre. Sigue adelantito, con cuidadito.";
+
+                case EstadoInstrucao.Frente2:
+                    return "¡Qué bien! Puedes caminar tranquilito hacia adelante.";
+
+                case EstadoInstrucao.Frente3:
+                    return "¡Mira qué lindo camino tan libre! Sigamos adelante juntos.";
+
+                case EstadoInstrucao.Frente4:
+                    return "¡Super! Todo está despejadito. ¡Aventura hacia adelante!";
+
+                default:
+                    return "Caminando pasito a pasito, todo va bien.";
             }
         }
 

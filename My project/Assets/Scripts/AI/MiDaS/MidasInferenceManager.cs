@@ -9,10 +9,68 @@ namespace LuckArkman.XR.AI
 {
     public struct MidasResult
     {
-        public float dangerScore;
-        public bool absoluteVelocityAlert;
-        public float leftZoneDanger;
-        public float rightZoneDanger;
+        public float dangerScore;           // 0–10: obstáculo ao centro-frente
+        public bool  absoluteVelocityAlert; // objeto se aproximando rapidamente
+        public float leftZoneDanger;        // 0–10: perigo zona esquerda
+        public float rightZoneDanger;       // 0–10: perigo zona direita
+
+        /// <summary>
+        /// Gera uma descrição do ambiente em espanhol latino-americano infantil
+        /// baseada nos scores de profundidade do MiDaS.
+        /// Esta frase é enviada directamente ao Piper TTS para síntese de voz.
+        /// </summary>
+        public string GerarDescricaoEspanhol()
+        {
+            // Limiar de perigo: > 6.0 = obstáculo próximo, > 3.5 = atenção
+            bool frentePerigoso  = dangerScore     > 6.0f;
+            bool frenteAtencao   = dangerScore     > 3.5f;
+            bool esqPerigoso     = leftZoneDanger  > 6.0f;
+            bool dirPerigoso     = rightZoneDanger > 6.0f;
+            bool esqAtencao      = leftZoneDanger  > 3.5f;
+            bool dirAtencao      = rightZoneDanger > 3.5f;
+
+            // ── Cenário 1: Algo muito perto não pode passar ─────────────────────
+            if (frentePerigoso && esqPerigoso && dirPerigoso)
+                return "¡Ay, ay, ay! Hay cosas por todos lados. Mejor nos detenemos un momentito.";
+
+            if (frentePerigoso && absoluteVelocityAlert)
+                return "¡Cuidado amigo! Algo se acerca rápido por el frente. ¡Para, para, para!";
+
+            if (frentePerigoso && esqPerigoso)
+                return "El camino del frente y de la izquierda está bloqueado. Giremos hacia la derecha.";
+
+            if (frentePerigoso && dirPerigoso)
+                return "Hay obstáculos al frente y a la derecha. Necesitamos ir hacia la izquierda.";
+
+            if (frentePerigoso)
+                return $"¡Uy! Hay algo muy cerca al frente, a unos {Mathf.RoundToInt(10f - dangerScore)} pasitos. Cuidadito.";
+
+            // ── Cenário 2: Atenção moderada ────────────────────────────────────
+            if (frenteAtencao && esqAtencao)
+                return "Hay cosas cerca al frente y a la izquierda. Mejor nos movemos un poquito a la derecha.";
+
+            if (frenteAtencao && dirAtencao)
+                return "Algo está cerca al frente y a la derecha. Vamos ligerito hacia la izquierda.";
+
+            if (frenteAtencao)
+                return "Hay algo al frente, pero todavía podemos pasar con cuidadito.";
+
+            // ── Cenário 3: Laterais com problema, centro livre ────────────────
+            if (esqPerigoso && !dirAtencao)
+                return "La izquierda está bloqueada, pero el camino a la derecha está libre. ¡Vamos!";
+
+            if (dirPerigoso && !esqAtencao)
+                return "La derecha está ocupada, pero por la izquierda está despejado. ¡Adelante!";
+
+            if (esqAtencao && dirAtencao)
+                return "Los costados tienen cosas cerca, pero el camino al frente está libre.";
+
+            // ── Cenário 4: Caminho livre ─────────────────────────────────────
+            if (absoluteVelocityAlert)
+                return "El camino parece libre, pero algo se está moviendo cerca. Sigamos con calma.";
+
+            return "El camino está despejado. Podemos caminar tranquilos hacia adelante.";
+        }
     }
 
     // ============================================================

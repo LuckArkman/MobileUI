@@ -24,9 +24,14 @@ namespace LuckArkman.XR.Main
         public ModelAsset piperModelAsset;
 
         [Header("Parâmetros de Síntese")]
-        [Range(0.1f, 2.0f)] public float noiseScale  = 0.667f; // variação de entoação
-        [Range(0.5f, 2.0f)] public float lengthScale = 1.0f;   // velocidade (>1 = mais lento)
-        [Range(0.0f, 1.0f)] public float noiseW      = 0.8f;   // variação de duração das sílabas
+        [Tooltip("Variação de entoação (0.1=monotono, 0.8=natural, 2.0=muito expressivo).")]
+        [Range(0.1f, 2.0f)] public float noiseScale  = 0.667f;
+
+        [Tooltip("Velocidade da fala. >1 = mais lento e pausado (tom infantil). Recomendado: 1.1–1.2.")]
+        [Range(0.5f, 2.0f)] public float lengthScale = 1.15f;  // <─ mais lento = mais infantil
+
+        [Tooltip("Variação de duração das sílabas (0=robótico, 0.9=natural infantil).")]
+        [Range(0.0f, 1.0f)] public float noiseW      = 0.9f;   // <─ maior = mais natural/criança
 
         // Tokens especiais do protocolo Piper VITS
         private const long ID_PAD   = 0;  // _  padding
