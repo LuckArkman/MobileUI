@@ -3673,6 +3673,9 @@ MonoBehaviour:
   largeTurnThreshold: 45
   smallTurnThreshold: 15
   straightThreshold: 15
+  inverterEixoXCamera: 0
+  routeTracker: {fileID: 0}
+  userTransform: {fileID: 0}
   heatmapManager: {fileID: 0}
 --- !u!114 &608830364
 MonoBehaviour:
@@ -3688,6 +3691,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.AI.MidasInferenceManager
   modelAsset: {fileID: 5022602860645237092, guid: a0c5d8ac18d578640adecb2ba6708f47, type: 3}
   velocityThreshold: 3.5
+  inverterEixoX: 0
 --- !u!1 &637151521 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5963138107579739024, guid: 02644bbd28622410a84cf154fc436b8a, type: 3}
