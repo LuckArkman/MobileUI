@@ -98,7 +98,7 @@ namespace LuckArkman.XR.Main
             "do Inspector em vez do motor TTS. Ideal para demonstrações públicas\n" +
             "onde a latencia do ONNX ou a qualidade da voz podem ser um problema."
         )]
-        public bool modoApresentacao = false; 
+        public bool modoApresentacao = true; 
 
         [Header("Tempos Dinâmicos de Espera (Segundos)")]
         public float tempoEsperaParar = 1.0f;     
