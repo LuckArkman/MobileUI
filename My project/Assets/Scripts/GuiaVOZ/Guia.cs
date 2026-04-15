@@ -128,6 +128,9 @@ namespace LuckArkman.XR.Main
 
         public void ExecutarComando(EstadoInstrucao comandoDecidido, int passosObjeto = 0, string descricaoAmbiente = "")
         {
+            // Não interrompe áudio que ainda está a tocar
+            if (spatialAudio != null && spatialAudio.EstaReproduziindo) return;
+
             if (Time.time >= proximoTempoDeFala)
             {
                 if (comandoDecidido != instrucaoAnterior)
@@ -146,10 +149,23 @@ namespace LuckArkman.XR.Main
                                             LuckArkman.XR.AI.MidasResult midasResult,
                                             int passosObjeto = 0)
         {
+            // Não interrompe áudio que ainda está a tocar
+            if (spatialAudio != null && spatialAudio.EstaReproduziindo) return;
+
             if (Time.time >= proximoTempoDeFala)
             {
-                // O MiDaS gera a descrição do ambiente em espanhol infantil
                 string descricaoMidas = midasResult.GerarDescricaoEspanhol();
+
+                Debug.Log(
+                    $"[MiDaS → Piper TTS]\n" +
+                    $"  Comando    : {comandoDecidido}\n" +
+                    $"  Frente     : {midasResult.dangerScore:F1}/10\n" +
+                    $"  Esquerda   : {midasResult.leftZoneDanger:F1}/10\n" +
+                    $"  Direita    : {midasResult.rightZoneDanger:F1}/10\n" +
+                    $"  Mov.Rápido : {(midasResult.absoluteVelocityAlert ? "SIM ⚡" : "não")}\n" +
+                    $"  Texto ES   : \"{descricaoMidas}\""
+                );
+
                 TocarComandoDeVoz(comandoDecidido, passosObjeto, descricaoMidas);
                 instrucaoAnterior = comandoDecidido;
             }
@@ -187,14 +203,28 @@ namespace LuckArkman.XR.Main
                     ? descricaoAmbiente
                     : ObterFrasePadraoEspanholInfantil(comando, passosObjeto);
 
+                // Timer pessimista até o clip estar pronto (evita race durante a síntese)
+                proximoTempoDeFala = Time.time + tempoDesteComando;
+
                 piperOnnxTTS.Sintetizar(frase, (AudioClip clip) =>
                 {
                     if (clip != null && spatialAudio != null)
-                        spatialAudio.ReproduziirClipPiper(clip, comando);
+                    {
+                        if (spatialAudio.ReproduziirClipPiper(clip, comando))
+                        {
+                            // FIX: Actualiza com a duração REAL do clip (já inclui pitchShiftFactor)
+                            // + 0.4s de buffer para evitar corte no último fonema.
+                            const float BUFFER_FINAL = 0.4f;
+                            proximoTempoDeFala = Time.time + clip.length + BUFFER_FINAL;
+                            Debug.Log($"[Guia] Timer actualizado: clip={clip.length:F2}s + buffer={BUFFER_FINAL}s " +
+                                      $"→ próxima fala em {clip.length + BUFFER_FINAL:F2}s");
+                        }
+                    }
                     else
+                    {
                         ExecutarAudioFallback(comando, tempoDesteComando);
+                    }
                 });
-                proximoTempoDeFala = Time.time + tempoDesteComando;
                 return;
             }
 

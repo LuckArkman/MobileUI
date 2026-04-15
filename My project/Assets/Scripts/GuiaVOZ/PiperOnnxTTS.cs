@@ -24,14 +24,26 @@ namespace LuckArkman.XR.Main
         public ModelAsset piperModelAsset;
 
         [Header("Parâmetros de Síntese")]
-        [Tooltip("Variação de entoação (0.1=monotono, 0.8=natural, 2.0=muito expressivo).")]
+        [Tooltip("Variação de entoação (0.1=monotono, 0.667=natural, 2.0=muito expressivo).")]
         [Range(0.1f, 2.0f)] public float noiseScale  = 0.667f;
 
-        [Tooltip("Velocidade da fala. >1 = mais lento e pausado (tom infantil). Recomendado: 1.1–1.2.")]
-        [Range(0.5f, 2.0f)] public float lengthScale = 1.15f;  // <─ mais lento = mais infantil
+        [Tooltip("Velocidade da fala gerada pelo modelo. >1 = mais lento. Use 1.25 com pitchShiftFactor=1.30.")]
+        [Range(0.5f, 2.0f)] public float lengthScale = 1.25f;
 
         [Tooltip("Variação de duração das sílabas (0=robótico, 0.9=natural infantil).")]
-        [Range(0.0f, 1.0f)] public float noiseW      = 0.9f;   // <─ maior = mais natural/criança
+        [Range(0.0f, 1.0f)] public float noiseW      = 0.9f;
+
+        [Header("Tom Infantil (Pitch Shift por Resample)")]
+        [Tooltip(
+            "Fator de deslocamento de pitch.\n" +
+            "1.00 = voz adulta original do modelo.\n" +
+            "1.20 = voz jovem/adolescente.\n" +
+            "1.30 = voz criança (recomendado).\n" +
+            "1.50 = voz muito aguda.\n\n" +
+            "Técnica: declara o AudioClip com sample rate menor (SAMPLE_RATE / factor),\n" +
+            "o Unity reproduz mais rápido e mais agudo — sem DSP pesado."
+        )]
+        [Range(1.0f, 1.8f)] public float pitchShiftFactor = 1.30f;
 
         // Tokens especiais do protocolo Piper VITS
         private const long ID_PAD   = 0;  // _  padding
@@ -293,9 +305,24 @@ namespace LuckArkman.XR.Main
 
             // 5. Converte float[] → AudioClip Unity (PCM 32-bit, mono, 22050 Hz)
             float duracao = (float)amostras.Length / SAMPLE_RATE;
-            Debug.Log($"[PiperOnnxTTS ✅ AUDIO GERADO] {amostras.Length:N0} amostras | {duracao:F2}s @ {SAMPLE_RATE}Hz");
 
-            AudioClip clip = AudioClip.Create("PiperTTS", amostras.Length, 1, SAMPLE_RATE, false);
+            // ── PITCH SHIFT POR RESAMPLE ────────────────────────────────────────────
+            // Declara o AudioClip com sample rate menor que o real.
+            // Unity interpreta: "este áudio foi gravado mais devagar" e reproduz
+            // mais rápido e mais agudo — efeito de voz infantil sem DSP pesado.
+            // Exemplo: SAMPLE_RATE=22050, factor=1.30 → declara 16961 Hz
+            //          Unity toca 22050/16961 = 1.30x mais rápido e agudo.
+            int playSampleRate = Mathf.Max(8000, Mathf.RoundToInt(SAMPLE_RATE / pitchShiftFactor));
+
+            Debug.Log(
+                $"[PiperOnnxTTS ✅ AUDIO GERADO]\n" +
+                $"  Amostras     : {amostras.Length:N0}\n" +
+                $"  Duração real  : {duracao:F2}s @ {SAMPLE_RATE}Hz\n" +
+                $"  PitchFactor  : {pitchShiftFactor:F2}x (sample rate declarado: {playSampleRate}Hz)\n" +
+                $"  Duração reproduzida: {(float)amostras.Length / playSampleRate:F2}s (mais curta = mais aguda)"
+            );
+
+            AudioClip clip = AudioClip.Create("PiperTTS", amostras.Length, 1, playSampleRate, false);
             clip.SetData(amostras, 0);
 
             onPronto?.Invoke(clip);

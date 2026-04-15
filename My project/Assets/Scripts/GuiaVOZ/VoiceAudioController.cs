@@ -17,14 +17,14 @@ namespace LuckArkman.XR.Main
         public float tomVelocidade = 1.0f;
 
         [Header("Equalização 3-Bandas Paramétrica (DSP)")]
-        [Range(0f, 3f)] [Tooltip("Graves (Bass) - Corpo e profundidade da voz.")]
-        public float graves = 1.0f;
+        [Range(0f, 3f)] [Tooltip("Graves (Bass) - Corpo da voz. Reduza para menos 'peito' adulto (padrão: 0.5).")]
+        public float graves = 0.5f;  // <─ menos graves = menos voz adulta
 
-        [Range(0f, 3f)] [Tooltip("Médios (Mid) - Clareza vocal para ser compreendido em ambientes urbanos.")]
-        public float medios = 1.0f;
+        [Range(0f, 3f)] [Tooltip("Médios (Mid) - Presença e clareza vocal. Aumente para voz infantil mais viva (padrão: 1.4).")]
+        public float medios = 1.4f;  // <─ mais médios = mais presença infantil
 
-        [Range(0f, 3f)] [Tooltip("Agudos (Treble) - Sibilância e ar na voz.")]
-        public float agudos = 1.0f;
+        [Range(0f, 3f)] [Tooltip("Agudos (Treble) - Brilho e ar. Voz de criança tem muito mais agudo (padrão: 1.6).")]
+        public float agudos = 1.6f;  // <─ mais agudos = brilho infantil
 
         private AudioSource _audioSource;
 
