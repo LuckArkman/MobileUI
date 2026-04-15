@@ -2695,7 +2695,6 @@ GameObject:
   - component: {fileID: 462482251}
   - component: {fileID: 462482250}
   - component: {fileID: 462482253}
-  - component: {fileID: 462482252}
   m_Layer: 0
   m_Name: Guia
   m_TagString: Untagged
@@ -2850,20 +2849,6 @@ AudioSource:
     m_PostInfinity: 2
     m_RotationOrder: 4
 --- !u!114 &462482251
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 462482247}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0a77b6da65e3de444aff970ec97f3383, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.SpatialAudioGuide
-  voiceAudioSource: {fileID: 462482250}
-  intensidadeDoPan: 0.8
---- !u!114 &462482252
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -7445,6 +7430,7 @@ MonoBehaviour:
   noiseScale: 0.667
   lengthScale: 1
   noiseW: 0.8
+  pitchShiftFactor: 1.3
 --- !u!4 &1196198236
 Transform:
   m_ObjectHideFlags: 0

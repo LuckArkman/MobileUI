@@ -14,62 +14,173 @@ namespace LuckArkman.XR.AI
         public float leftZoneDanger;        // 0–10: perigo zona esquerda
         public float rightZoneDanger;       // 0–10: perigo zona direita
 
+        // Contador estático de rotação — garante variação mesmo com mesma condição
+        private static int _rotacao;
+
         /// <summary>
-        /// Gera uma descrição do ambiente em espanhol latino-americano infantil
-        /// baseada nos scores de profundidade do MiDaS.
-        /// Esta frase é enviada directamente ao Piper TTS para síntese de voz.
+        /// Gera uma descrição DINÂMICA do ambiente em espanhol latino-americano infantil.
+        /// As frases são compostas usando os valores numéricos reais dos scores MiDaS,
+        /// com rotação de variantes para evitar repetição em loop.
         /// </summary>
         public string GerarDescricaoEspanhol()
         {
-            // Limiar de perigo: > 6.0 = obstáculo próximo, > 3.5 = atenção
-            bool frentePerigoso  = dangerScore     > 6.0f;
-            bool frenteAtencao   = dangerScore     > 3.5f;
-            bool esqPerigoso     = leftZoneDanger  > 6.0f;
-            bool dirPerigoso     = rightZoneDanger > 6.0f;
-            bool esqAtencao      = leftZoneDanger  > 3.5f;
-            bool dirAtencao      = rightZoneDanger > 3.5f;
+            _rotacao++;   // avança a cada chamada — nunca fica estático
 
-            // ── Cenário 1: Algo muito perto não pode passar ─────────────────────
+            // ── Traduz scores numéricos em intensidade verbal ─────────────────────────
+            string IntensidadeFrente(float s) =>
+                s > 8.5f ? "muy, muy cerca" :
+                s > 7.0f ? "bastante cerca" :
+                s > 5.5f ? "cerquita" : "un poco cerca";
+
+            string IntensidadeLateral(float s) =>
+                s > 8.0f ? "bloqueado" :
+                s > 6.0f ? "muy apretado" :
+                s > 4.0f ? "con cosas" : "algo ocupado";
+
+            int PasitosDist(float s) =>
+                Mathf.Clamp(Mathf.RoundToInt(10f - s), 1, 5);
+
+            // Limiares
+            bool frentePerigoso = dangerScore     > 6.0f;
+            bool frenteAtencao  = dangerScore     > 3.5f;
+            bool esqPerigoso    = leftZoneDanger  > 6.0f;
+            bool dirPerigoso    = rightZoneDanger > 6.0f;
+            bool esqAtencao     = leftZoneDanger  > 3.5f;
+            bool dirAtencao     = rightZoneDanger > 3.5f;
+
+            // ── CENÁRIO A: Tudo bloqueado ─────────────────────────────────────────────
             if (frentePerigoso && esqPerigoso && dirPerigoso)
-                return "¡Ay, ay, ay! Hay cosas por todos lados. Mejor nos detenemos un momentito.";
+            {
+                string[] v = {
+                    $"¡Uy, uy, uy! Hay cosas por todos lados. El frente está {IntensidadeFrente(dangerScore)} y los costados también. Paremos un momento.",
+                    $"Todo el camino está ocupado. El frente a {PasitosDist(dangerScore)} pasitos, y los dos lados bloqueados. ¡Cuidado, cuidado!",
+                    $"¡Ay! No podemos pasar ni por el frente ni por los lados. Mejor esperamos aquí un ratito."
+                };
+                return v[_rotacao % v.Length];
+            }
 
-            if (frentePerigoso && absoluteVelocityAlert)
-                return "¡Cuidado amigo! Algo se acerca rápido por el frente. ¡Para, para, para!";
+            // ── CENÁRIO B: Objeto se aproximando rápido ───────────────────────────────
+            if (absoluteVelocityAlert && frentePerigoso)
+            {
+                string[] v = {
+                    $"¡Algo se mueve hacia nosotros por el frente! Está {IntensidadeFrente(dangerScore)}. ¡Para, para!",
+                    $"¡Cuidado! Hay un obstáculo moviéndose {IntensidadeFrente(dangerScore)} al frente. ¡Detente ya!",
+                    $"¡Rápido! Algo viene hacia acá por el frente. Está a solo {PasitosDist(dangerScore)} pasitos. ¡Alto!"
+                };
+                return v[_rotacao % v.Length];
+            }
 
+            // ── CENÁRIO C: Frente + esquerda bloqueados ───────────────────────────────
             if (frentePerigoso && esqPerigoso)
-                return "El camino del frente y de la izquierda está bloqueado. Giremos hacia la derecha.";
+            {
+                string[] v = {
+                    $"El frente está {IntensidadeFrente(dangerScore)} y la izquierda {IntensidadeLateral(leftZoneDanger)}. Giremos hacia la derecha, que está más libre.",
+                    $"No podemos ir recto ni a la izquierda. Por la derecha hay más espacio. ¡Vamos hacia allá!",
+                    $"La izquierda y el frente están ocupados. La derecha es nuestro mejor camino ahora mismo."
+                };
+                return v[_rotacao % v.Length];
+            }
 
+            // ── CENÁRIO D: Frente + direita bloqueados ────────────────────────────────
             if (frentePerigoso && dirPerigoso)
-                return "Hay obstáculos al frente y a la derecha. Necesitamos ir hacia la izquierda.";
+            {
+                string[] v = {
+                    $"El frente está {IntensidadeFrente(dangerScore)} y la derecha {IntensidadeLateral(rightZoneDanger)}. Vamos hacia la izquierda que está más despejada.",
+                    $"El frente y la derecha tienen obstáculos. La izquierda es el camino libre. ¡Por ahí vamos!",
+                    $"No podemos ir recto ni a la derecha. Giremos suavecito hacia la izquierda."
+                };
+                return v[_rotacao % v.Length];
+            }
 
+            // ── CENÁRIO E: Só frente perigoso ─────────────────────────────────────────
             if (frentePerigoso)
-                return $"¡Uy! Hay algo muy cerca al frente, a unos {Mathf.RoundToInt(10f - dangerScore)} pasitos. Cuidadito.";
+            {
+                string[] v = {
+                    $"¡Uy! Hay un obstáculo {IntensidadeFrente(dangerScore)} al frente, a unos {PasitosDist(dangerScore)} pasitos. Hay que desviarse.",
+                    $"El camino del frente está {IntensidadeFrente(dangerScore)} bloqueado. Busquemos por dónde pasar.",
+                    $"¡Alto! Algo está {IntensidadeFrente(dangerScore)} enfrente nuestro. Peligro a {PasitosDist(dangerScore)} pasitos.",
+                    $"Cuidadito, cuidadito. Hay algo {IntensidadeFrente(dangerScore)} delante de nosotros."
+                };
+                return v[_rotacao % v.Length];
+            }
 
-            // ── Cenário 2: Atenção moderada ────────────────────────────────────
-            if (frenteAtencao && esqAtencao)
-                return "Hay cosas cerca al frente y a la izquierda. Mejor nos movemos un poquito a la derecha.";
+            // ── CENÁRIO F: Atenção moderada no frente + lado ──────────────────────────
+            if (frenteAtencao && esqAtencao && !dirAtencao)
+            {
+                string[] v = {
+                    $"Hay cosas {IntensidadeFrente(dangerScore)} al frente y {IntensidadeLateral(leftZoneDanger)} a la izquierda. La derecha está más libre.",
+                    $"El frente y la izquierda están {IntensidadeFrente(dangerScore)}. Mejor nos corremos un poquito hacia la derecha.",
+                };
+                return v[_rotacao % v.Length];
+            }
 
-            if (frenteAtencao && dirAtencao)
-                return "Algo está cerca al frente y a la derecha. Vamos ligerito hacia la izquierda.";
+            if (frenteAtencao && dirAtencao && !esqAtencao)
+            {
+                string[] v = {
+                    $"El frente está {IntensidadeFrente(dangerScore)} y la derecha {IntensidadeLateral(rightZoneDanger)}. Hacia la izquierda hay más espacio.",
+                    $"Hay cosas cerca al frente y a la derecha. Nos movemos un poquito hacia la izquierda.",
+                };
+                return v[_rotacao % v.Length];
+            }
 
             if (frenteAtencao)
-                return "Hay algo al frente, pero todavía podemos pasar con cuidadito.";
+            {
+                string[] v = {
+                    $"Hay algo {IntensidadeFrente(dangerScore)} al frente, a unos {PasitosDist(dangerScore)} pasitos. Podemos pasar con cuidado.",
+                    $"El frente tiene un obstáculo {IntensidadeFrente(dangerScore)}, pero hay espacio. Con cuidadito podemos.",
+                    $"Atencionciito, hay algo al frente. No tan cerca todavía, pero vigila.",
+                };
+                return v[_rotacao % v.Length];
+            }
 
-            // ── Cenário 3: Laterais com problema, centro livre ────────────────
+            // ── CENÁRIO G: Laterais com problema, centro livre ────────────────────────
             if (esqPerigoso && !dirAtencao)
-                return "La izquierda está bloqueada, pero el camino a la derecha está libre. ¡Vamos!";
+            {
+                string[] v = {
+                    $"La izquierda está {IntensidadeLateral(leftZoneDanger)}, pero el camino por la derecha está libre. ¡Vamos!",
+                    $"Cuidado con la izquierda, que está {IntensidadeLateral(leftZoneDanger)}. Por la derecha podemos pasar bien.",
+                };
+                return v[_rotacao % v.Length];
+            }
 
             if (dirPerigoso && !esqAtencao)
-                return "La derecha está ocupada, pero por la izquierda está despejado. ¡Adelante!";
+            {
+                string[] v = {
+                    $"La derecha está {IntensidadeLateral(rightZoneDanger)}, pero por la izquierda el camino está despejado. ¡Adelante!",
+                    $"Hay algo {IntensidadeLateral(rightZoneDanger)} a la derecha. La izquierda está libre, por ahí vamos.",
+                };
+                return v[_rotacao % v.Length];
+            }
 
             if (esqAtencao && dirAtencao)
-                return "Los costados tienen cosas cerca, pero el camino al frente está libre.";
+            {
+                string[] v = {
+                    $"Los costados tienen cosas cerca, la izquierda {IntensidadeLateral(leftZoneDanger)} y la derecha {IntensidadeLateral(rightZoneDanger)}, pero el frente está libre.",
+                    $"A los dos lados hay obstáculos, pero el camino del frente está despejado. Sigamos de frente.",
+                };
+                return v[_rotacao % v.Length];
+            }
 
-            // ── Cenário 4: Caminho livre ─────────────────────────────────────
+            // ── CENÁRIO H: Movimento detectado, caminho livre ─────────────────────────
             if (absoluteVelocityAlert)
-                return "El camino parece libre, pero algo se está moviendo cerca. Sigamos con calma.";
+            {
+                string[] v = {
+                    "El camino parece libre, pero algo se está moviendo cerca. Sigamos con calma.",
+                    "Hay movimiento por aquí, pero el camino está despejado. Atención y adelante.",
+                };
+                return v[_rotacao % v.Length];
+            }
 
-            return "El camino está despejado. Podemos caminar tranquilos hacia adelante.";
+            // ── CENÁRIO I: Caminho completamente livre ────────────────────────────────
+            {
+                string[] v = {
+                    "El camino está despejado. Podemos caminar tranquilos hacia adelante.",
+                    "¡Todo libre! Sigamos adelante sin problemas.",
+                    "El camino está libre. ¡Vamos con confianza!",
+                    "No hay obstáculos. El camino es nuestro, ¡adelante!",
+                };
+                return v[_rotacao % v.Length];
+            }
         }
     }
 
