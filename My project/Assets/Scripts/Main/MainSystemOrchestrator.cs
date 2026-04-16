@@ -137,12 +137,6 @@ namespace LuckArkman.XR.Main
 
                         Debug.Log($"[Main - CONSENSO ATINGIDO] Analisados 14 frames. Placar: {placar}. Comando Final Enviado ao Guia: {pacoteFinal.comando}. Motivo semântico: {pacoteFinal.motivoSemantico}.");
 
-                        if (!sistemaGuia.EstaTocandoAudioDeSistema)
-                        {
-                            // Envia o comando, passos, descrição e o motivo semântico para o Guia.cs
-                            sistemaGuia.ExecutarComando(pacoteFinal.comando, passosCalculados, descricaoAmbiente, pacoteFinal.motivoSemantico);
-                        }
-
                         bool isManobraEvasiva = 
                             pacoteFinal.comando != Guia.EstadoInstrucao.Frente1 && 
                             pacoteFinal.comando != Guia.EstadoInstrucao.Frente2 && 
@@ -150,8 +144,16 @@ namespace LuckArkman.XR.Main
                             pacoteFinal.comando != Guia.EstadoInstrucao.Frente4 && 
                             pacoteFinal.comando != Guia.EstadoInstrucao.Nenhum;
 
+                        // OTIMIZAÇÃO E REDUÇÃO DE RUÍDO:
+                        // O YOLO e MiDaS agora atuam EXCLUSIVAMENTE na identificação de perigos.
+                        // A navegação normal de fluxo é agora governada unicamente pelos Checkpoints no Guia.
                         if (isManobraEvasiva)
                         {
+                            if (!sistemaGuia.EstaTocandoAudioDeSistema)
+                            {
+                                // Envia ESPECIFICAMENTE as informações de alerta/evasão ao Guia.cs
+                                sistemaGuia.ExecutarComando(pacoteFinal.comando, passosCalculados, descricaoAmbiente, pacoteFinal.motivoSemantico);
+                            }
                             tempoDescansoManobra = Time.time + 1.5f;
                         }
 
