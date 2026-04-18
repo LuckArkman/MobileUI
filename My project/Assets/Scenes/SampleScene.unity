@@ -476,6 +476,7 @@ MonoBehaviour:
   yoloAI: {fileID: 608830359}
   riskCalculator: {fileID: 0}
   heatmapManager: {fileID: 608830357}
+  checkpointPlacer: {fileID: 0}
 --- !u!114 &82645043
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -647,6 +648,65 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 96498135}
   m_CullTransparentMesh: 1
+--- !u!1 &98564315
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 98564317}
+  - component: {fileID: 98564316}
+  m_Layer: 0
+  m_Name: MainSystemOrchestrator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &98564316
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 98564315}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 457c605a172956b47b4c7da17316e8ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Main.MainSystemOrchestrator
+  discoveryManager: {fileID: 1571486779}
+  mjpegClient: {fileID: 1571486780}
+  actuatorClient: {fileID: 1571486782}
+  yoloAI: {fileID: 608830359}
+  midasAI: {fileID: 608830364}
+  depthAI: {fileID: 499156160}
+  useDepthAnythingV2: 1
+  decisionMatrix: {fileID: 608830363}
+  heatmapManager: {fileID: 608830357}
+  hudController: {fileID: 82645042}
+  batteryOptimizer: {fileID: 1323550136}
+  sistemaGuia: {fileID: 462482248}
+  routeProgress: {fileID: 462482254}
+  raycastScanner: {fileID: 1914560143}
+  odometryTracker: {fileID: 1809930511}
+--- !u!4 &98564317
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 98564315}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8.01287, y: -0.56999, z: 8.56267}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &145380978
 GameObject:
   m_ObjectHideFlags: 0
@@ -1782,6 +1842,56 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 274237797}
   m_CullTransparentMesh: 1
+--- !u!1 &293764489
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 293764491}
+  - component: {fileID: 293764490}
+  m_Layer: 0
+  m_Name: ARCheckpointPlacer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &293764490
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 293764489}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aabb2e72fc537a14d90d3e1098543e31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.AR.ARCheckpointPlacer
+  routeTracker: {fileID: 0}
+  checkpointMarkerPrefab: {fileID: 0}
+  checkpointConfirmedPrefab: {fileID: 0}
+  checkpointRadius: 1.2
+  corSurfaceDetected: {r: 0.2, g: 1, b: 0.4, a: 0.85}
+  corSearching: {r: 1, g: 0.6, b: 0.1, a: 0.6}
+--- !u!4 &293764491
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 293764489}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8.01287, y: -0.56999, z: 8.56267}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &310325645
 GameObject:
   m_ObjectHideFlags: 0
@@ -1823,6 +1933,7 @@ MonoBehaviour:
   anguloDesejadoGPS: 90
   isNavigating: 0
   anguloRelativoAoDestino: 0
+  distanciaAoDestino: 0
 --- !u!114 &310325647
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1885,12 +1996,16 @@ MonoBehaviour:
   actuatorClient: {fileID: 1571486782}
   yoloAI: {fileID: 608830359}
   midasAI: {fileID: 608830364}
+  depthAI: {fileID: 0}
+  useDepthAnythingV2: 1
   decisionMatrix: {fileID: 608830363}
   heatmapManager: {fileID: 608830357}
   hudController: {fileID: 82645042}
   batteryOptimizer: {fileID: 1323550136}
   sistemaGuia: {fileID: 462482248}
   routeProgress: {fileID: 0}
+  raycastScanner: {fileID: 0}
+  odometryTracker: {fileID: 0}
 --- !u!114 &310325651
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2023,6 +2138,60 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 332374253}
   m_CullTransparentMesh: 1
+--- !u!1 &352584055
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 352584057}
+  - component: {fileID: 352584056}
+  m_Layer: 0
+  m_Name: RouteProgressTracker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &352584056
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 352584055}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7052f3c816b7914489bc83a5211710eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Navigation.RouteProgressTracker
+  userTransform: {fileID: 0}
+  routeWaypoints: []
+  radiusTolerance: 1.5
+  useGPSFallback: 0
+  odometryTracker: {fileID: 1809930511}
+  passosParaConfirmarCheckpoint: 5
+  useOdometryConfirmation: 0
+  calcularAnguloBussola: 1
+  debugLogs: 1
+  currentWaypointIndex: 0
+--- !u!4 &352584057
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 352584055}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8.01287, y: -0.56999, z: 8.56267}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &401321167
 GameObject:
   m_ObjectHideFlags: 0
@@ -2925,6 +3094,53 @@ MonoBehaviour:
   framesConsecutivosParaEvasao: 5
   timeoutEvasao: 8
   evasaoAtivaNaModoApresentacao: 1
+--- !u!1 &499156159
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 499156161}
+  - component: {fileID: 499156160}
+  m_Layer: 0
+  m_Name: DepthAIManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &499156160
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 499156159}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5db5137225802774192eff7ce919458b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.AI.DepthAIManager
+  modelAsset: {fileID: 5022602860645237092, guid: 7c7dca842137bd04fa2820067adbaa30, type: 3}
+  inverterEixoX: 0
+  velocityThreshold: 2.5
+--- !u!4 &499156161
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 499156159}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8.01287, y: -0.56999, z: 8.56267}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &508700756
 GameObject:
   m_ObjectHideFlags: 0
@@ -3624,12 +3840,16 @@ MonoBehaviour:
   actuatorClient: {fileID: 1571486782}
   yoloAI: {fileID: 608830359}
   midasAI: {fileID: 608830364}
+  depthAI: {fileID: 0}
+  useDepthAnythingV2: 1
   decisionMatrix: {fileID: 608830363}
   heatmapManager: {fileID: 608830357}
   hudController: {fileID: 82645042}
   batteryOptimizer: {fileID: 1323550136}
   sistemaGuia: {fileID: 462482248}
   routeProgress: {fileID: 0}
+  raycastScanner: {fileID: 0}
+  odometryTracker: {fileID: 0}
 --- !u!4 &608830361
 Transform:
   m_ObjectHideFlags: 0
@@ -9721,6 +9941,7 @@ MonoBehaviour:
   yoloAI: {fileID: 608830359}
   riskCalculator: {fileID: 0}
   heatmapManager: {fileID: 608830357}
+  checkpointPlacer: {fileID: 0}
 --- !u!1 &1706167579
 GameObject:
   m_ObjectHideFlags: 0
@@ -10209,6 +10430,64 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &1809930510
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1809930512}
+  - component: {fileID: 1809930511}
+  m_Layer: 0
+  m_Name: OdometryTracker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1809930511
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1809930510}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3fffdaa285f111c49951463c853ea830, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Navigation.OdometryTracker
+  stepPeakThreshold: 0.3
+  minStepInterval: 0.3
+  comprimentoPasso: 0.75
+  idleTimeoutSegundos: 2
+  varianciaMovimento: 0.008
+  passosParaDesbloquear: 1
+  useARCoreFusion: 1
+  arMovementThreshold: 0.05
+  _isMoving: 0
+  _stepCount: 0
+  _distanciaPercorridaMetros: 0
+  _velocidadeAtualMs: 0
+  _tempoSemPasso: 0
+  _varianciaAtual: 0
+--- !u!4 &1809930512
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1809930510}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8.01287, y: -0.56999, z: 8.56267}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1835809108 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2318766424490069697, guid: dae86721c71ee42018bbec0181a4e52e, type: 3}
@@ -10842,6 +11121,60 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1905935980}
   m_CullTransparentMesh: 1
+--- !u!1 &1914560142
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1914560144}
+  - component: {fileID: 1914560143}
+  m_Layer: 0
+  m_Name: RaycastScanner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1914560143
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1914560142}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d66e45c64eac224b9026cf746732860, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LuckArkman.XR.Safety.RaycastScanner
+  distanciaMaxima: 7
+  distanciaMinima: 0.3
+  curvaturaConversao: 0.35
+  limiarPerigoImediato: 0.8
+  limiarAtencao: 2.5
+  _frontDistanceMeters: 0
+  _leftDistanceMeters: 0
+  _rightDistanceMeters: 0
+  _frontDistanceSteps: 0
+  _velocidadeAlerta: 0
+--- !u!4 &1914560144
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1914560142}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8.01287, y: -0.56999, z: 8.56267}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1936784340
 GameObject:
   m_ObjectHideFlags: 0
@@ -13347,3 +13680,9 @@ SceneRoots:
   - {fileID: 602488419}
   - {fileID: 310325649}
   - {fileID: 1196198236}
+  - {fileID: 293764491}
+  - {fileID: 1809930512}
+  - {fileID: 1914560144}
+  - {fileID: 352584057}
+  - {fileID: 98564317}
+  - {fileID: 499156161}
