@@ -3,6 +3,7 @@ using UnityEngine.UIElements;
 using LuckArkman.XR.Networking;
 using System.Linq;
 
+
 namespace LuckArkman.XR.UI
 {
     public class HudController : MonoBehaviour
@@ -19,12 +20,20 @@ namespace LuckArkman.XR.UI
         [SerializeField] private LuckArkman.XR.AI.YoloInferenceManager yoloAI;
         [SerializeField] private LuckArkman.XR.Safety.RiskCalculator riskCalculator;
         [SerializeField] private LuckArkman.XR.Safety.HeatmapManager heatmapManager;
+        [SerializeField] private LuckArkman.XR.AR.ARCheckpointPlacer checkpointPlacer;
+
 
         private Label latencyLabel;
         private Label bitrateLabel;
         private Label arStatusLabel;
         private Label aiStatusLabel;
         private Button btnHotspot;
+
+        // Botões do fluxo de navegação (spec App La Rosa)
+        private Button btnEstabelecerCheckpoints;
+        private Button btnMarcarCheckpoint;
+        private Button btnIniciarNavegacao;
+        private Label  lblTotalCheckpoints;
         
         private void OnEnable()
         {
@@ -50,9 +59,40 @@ namespace LuckArkman.XR.UI
 
             btnHotspot = root.Q<Button>("BtnHotspot");
             if (btnHotspot != null)
-            {
                 btnHotspot.clicked += OpenHotspotSettings;
-            }
+
+            // ── Botões de Navegação AR (spec App La Rosa) ────────────────────
+            btnEstabelecerCheckpoints = root.Q<Button>("BtnEstabelecerCheckpoints");
+            btnMarcarCheckpoint       = root.Q<Button>("BtnMarcarCheckpoint");
+            btnIniciarNavegacao       = root.Q<Button>("BtnIniciarNavegacao");
+            lblTotalCheckpoints       = root.Q<Label>("LblTotalCheckpoints");
+
+            if (btnEstabelecerCheckpoints != null)
+                btnEstabelecerCheckpoints.clicked += () =>
+                {
+                    checkpointPlacer?.AtivarModoMarcacao();
+                    AtualizarBotoesNavegacao();
+                };
+
+            if (btnMarcarCheckpoint != null)
+                btnMarcarCheckpoint.clicked += () =>
+                {
+                    checkpointPlacer?.MarcarCheckpointAtual();
+                    AtualizarBotoesNavegacao();
+                };
+
+            if (btnIniciarNavegacao != null)
+                btnIniciarNavegacao.clicked += () =>
+                {
+                    checkpointPlacer?.FinalizarEIniciarNavegacao();
+                    AtualizarBotoesNavegacao();
+                };
+
+            // Estado inicial: apenas [Estabelecer Checkpoints] habilitado
+            AtualizarBotoesNavegacao();
+
+            if (checkpointPlacer != null)
+                checkpointPlacer.OnCheckpointMarcado += _ => AtualizarBotoesNavegacao();
         }
 
         private void OpenHotspotSettings()
@@ -100,8 +140,24 @@ namespace LuckArkman.XR.UI
 
             if (arStatusLabel != null)
             {
-                arStatusLabel.text = "ESPACIAL: DESATIVADO (MODO POCKET)";
-                arStatusLabel.style.color = new StyleColor(Color.gray);
+                bool arAtivo = checkpointPlacer != null && checkpointPlacer.TemSuperficieDetectada;
+                bool modoMarcacao = checkpointPlacer != null && checkpointPlacer.ModoMarcacaoAtivo;
+
+                if (modoMarcacao && arAtivo)
+                {
+                    arStatusLabel.text = "📍 AR: SUPERFÍCIE DETECTADA — PRONTO PARA MARCAR";
+                    arStatusLabel.style.color = new StyleColor(new Color(0.2f, 1f, 0.4f));
+                }
+                else if (modoMarcacao)
+                {
+                    arStatusLabel.text = "🔍 AR: AGUARDANDO SUPERFÍCIE...";
+                    arStatusLabel.style.color = new StyleColor(new Color(1f, 0.6f, 0.1f));
+                }
+                else
+                {
+                    arStatusLabel.text = "ESPACIAL: MODO POCKET (AR em espera)";
+                    arStatusLabel.style.color = new StyleColor(Color.gray);
+                }
             }
 
             if (aiStatusLabel != null)
@@ -160,6 +216,36 @@ namespace LuckArkman.XR.UI
             }
             
             if (statusTag != null) statusTag.style.backgroundColor = new StyleColor(Color.yellow);
+        }
+
+        /// <summary>
+        /// Atualiza estado visual dos botões de navegação AR com base no estado atual do ARCheckpointPlacer.
+        /// Regras:
+        ///   [Estabelecer Checkpoints] — sempre habilitado (inicia/reinicia o modo)
+        ///   [Marcar Checkpoint]        — habilitado apenas no modo de marcação ativo
+        ///   [Iniciar]                  — habilitado quando há pelo menos 2 checkpoints marcados
+        /// </summary>
+        private void AtualizarBotoesNavegacao()
+        {
+            bool modoAtivo = checkpointPlacer != null && checkpointPlacer.ModoMarcacaoAtivo;
+            int  total     = checkpointPlacer != null ? checkpointPlacer.TotalCheckpoints : 0;
+
+            if (btnMarcarCheckpoint != null)
+            {
+                btnMarcarCheckpoint.SetEnabled(modoAtivo);
+                btnMarcarCheckpoint.text = modoAtivo
+                    ? $"📍 MARCAR CHECKPOINT ({total + 1})"
+                    : "📍 MARCAR CHECKPOINT";
+            }
+
+            if (btnIniciarNavegacao != null)
+                btnIniciarNavegacao.SetEnabled(total >= 2);
+
+            if (lblTotalCheckpoints != null)
+                lblTotalCheckpoints.text = $"Checkpoints marcados: {total}";
+
+            if (btnEstabelecerCheckpoints != null)
+                btnEstabelecerCheckpoints.text = modoAtivo ? "✏️ MARCANDO ROTA..." : "🗺️ ESTABELECER CHECKPOINTS";
         }
 
         public void SetVisibility(bool isVisible)

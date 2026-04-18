@@ -57,7 +57,11 @@ namespace LuckArkman.XR.Navigation
             Debug.Log("[Navigation] Navegação Cancelada ou Pausada.");
         }
 
-        [HideInInspector] public float anguloRelativoAoDestino = 0f; 
+        [HideInInspector] public float anguloRelativoAoDestino = 0f;
+
+        /// <summary>Distância em metros até o ponto GPS atual. Consumido por RouteProgressTracker.</summary>
+        [HideInInspector] public float distanciaAoDestino = 0f;
+
 
         void Update()
         {
@@ -74,6 +78,8 @@ namespace LuckArkman.XR.Navigation
             // 1. CHECAGEM DE PROGRESSO
             RouteNode alvoAtual = rotaAtiva.nos[indicePontoAtual];
             float distanciaAteAtual = CalculateDistance(latAtual, lonAtual, (float)alvoAtual.latitude, (float)alvoAtual.longitude);
+            distanciaAoDestino = distanciaAteAtual; // expõe para RouteProgressTracker
+
 
             // 2. AVANÇO ORGÂNICO
             if (distanciaAteAtual <= raioDeCaptura)
