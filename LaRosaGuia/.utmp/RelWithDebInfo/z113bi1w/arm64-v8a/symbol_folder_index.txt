@@ -1,0 +1,1 @@
+C:\Users\pedro\LaRosaFinal\MobileUI-guia\LaRosaGuia\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\build\intermediates\cxx\RelWithDebInfo\z113bi1w\obj\arm64-v8a

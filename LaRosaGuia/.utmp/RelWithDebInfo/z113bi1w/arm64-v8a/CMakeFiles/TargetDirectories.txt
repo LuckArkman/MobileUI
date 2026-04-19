@@ -1,0 +1,5 @@
+C:/Users/pedro/LaRosaFinal/MobileUI-guia/LaRosaGuia/.utmp/RelWithDebInfo/z113bi1w/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/pedro/LaRosaFinal/MobileUI-guia/LaRosaGuia/.utmp/RelWithDebInfo/z113bi1w/arm64-v8a/CMakeFiles/rebuild_cache.dir
+C:/Users/pedro/LaRosaFinal/MobileUI-guia/LaRosaGuia/.utmp/RelWithDebInfo/z113bi1w/arm64-v8a/GameActivity/CMakeFiles/game.dir
+C:/Users/pedro/LaRosaFinal/MobileUI-guia/LaRosaGuia/.utmp/RelWithDebInfo/z113bi1w/arm64-v8a/GameActivity/CMakeFiles/edit_cache.dir
+C:/Users/pedro/LaRosaFinal/MobileUI-guia/LaRosaGuia/.utmp/RelWithDebInfo/z113bi1w/arm64-v8a/GameActivity/CMakeFiles/rebuild_cache.dir

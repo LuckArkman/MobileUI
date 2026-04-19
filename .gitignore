@@ -1,0 +1,71 @@
+# Pastas geradas pelo Unity (Regra global para qualquer subpasta)
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+*.log
+
+# By default unity supports Blender asset imports
+*.blend1
+*.blend1.meta
+
+# MemoryCaptures e Recordings
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Visual Studio / IDE cache directory
+.vs/
+.gradle/
+ExportedObj/
+.consulo/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity3D generated meta files e crash reports
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+mono_crash.*
+
+# Builds
+*.apk
+*.aab
+*.unitypackage
+*.unitypackage.meta
+*.app
+crashlytics-build.properties
+
+# Addressables
+ServerData/
+[Aa]ssets/StreamingAssets/aa*
+[Aa]ssets/AddressableAssetsData/link.xml*
+[Aa]ssets/Addressables_Temp*
+[Aa]ssets/AddressableAssetsData/*/*.bin*
+
+# Visual Scripting auto-generated files
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db.meta
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers.meta
+
+# Pastas específicas do seu projeto (sem aspas)
+My project/Library/
+My project/obj/
+My project/Logs/
+My project/Temp/
