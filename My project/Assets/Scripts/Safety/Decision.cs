@@ -239,7 +239,8 @@ namespace LuckArkman.XR.Safety
 
             bool temPoliticaDeSeguranca = false;
             string overrideReason = string.Empty;
-            AplicarPenalidadesDeSeguranca(scores, midasData, temObjetoCriticoNaRota, ref overrideReason, intencao, principalLabel, ref temPoliticaDeSeguranca);
+            AplicarPenalidadesDeSeguranca(
+                scores, midasData, temObjetoCriticoNaRota, ref overrideReason, intencao, principalLabel, ref temPoliticaDeSeguranca);
 
             if (temObjetoCriticoNaRota && string.IsNullOrEmpty(motivoSemantico))
             {
@@ -357,15 +358,16 @@ namespace LuckArkman.XR.Safety
                 }
             }
 
-            if (midasData.dangerScore > 5.0f)
+            if (midasData.dangerScore > 7.0f) 
             {
                 scores[Guia.EstadoInstrucao.Frente4] -= frontPenalty;
                 scores[Guia.EstadoInstrucao.Frente3] -= frontPenalty * 0.8f;
                 scores[Guia.EstadoInstrucao.Frente2] -= frontPenalty * 0.5f;
                 scores[Guia.EstadoInstrucao.Frente1] -= frontPenalty * 0.2f;
+    
                 if (intencao.ToString().StartsWith("Frente"))
                 {
-                    overrideReason = $"Frente está perigosa (MiDaS: {midasData.dangerScore:F1})";
+                    overrideReason = $"Frente bloqueada (MiDaS: {midasData.dangerScore:F1})";
                     temPoliticaDeSeguranca = true;
                 }
             }
@@ -388,10 +390,10 @@ namespace LuckArkman.XR.Safety
 
         private Guia.EstadoInstrucao EscolherFrentePorPerigo(float dangerScore)
         {
-            if (dangerScore < 2.0f) return Guia.EstadoInstrucao.Frente4;
-            if (dangerScore < 3.5f) return Guia.EstadoInstrucao.Frente3;
-            if (dangerScore < 5.0f) return Guia.EstadoInstrucao.Frente2;
-            return Guia.EstadoInstrucao.Frente1;
+            if (dangerScore < 3.0f) return Guia.EstadoInstrucao.Frente4; // Caminho totalmente livre
+            if (dangerScore < 5.5f) return Guia.EstadoInstrucao.Frente3; // Espaço bom (> 1.7m)
+            if (dangerScore < 7.0f) return Guia.EstadoInstrucao.Frente2; // Cuidado, mas dá pra avançar (ex: 1.2m)
+            return Guia.EstadoInstrucao.Frente1; // Muito perto (< 1m), ir passo a passo cauteloso
         }
 
         private void RegistrarVitoria(DecisaoPacote pacote)

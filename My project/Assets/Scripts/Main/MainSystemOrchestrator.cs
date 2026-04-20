@@ -12,19 +12,26 @@ namespace LuckArkman.XR.Main
 {
     public class MainSystemOrchestrator : MonoBehaviour
     {
-        public enum SystemState { Idle, Searching, Connecting, Active, Warning }
-        
-        [Header("Referências de Módulos")]
-        public WifiDiscoveryManager discoveryManager;
-        public MjpegTextureClient mjpegClient; 
-        public ActuatorClient actuatorClient; 
-        
+        public enum SystemState
+        {
+            Idle,
+            Searching,
+            Connecting,
+            Active,
+            Warning
+        }
+
+        [Header("Referências de Módulos")] public WifiDiscoveryManager discoveryManager;
+        public MjpegTextureClient mjpegClient;
+        public ActuatorClient actuatorClient;
+
         public YoloInferenceManager yoloAI;
 
         [Tooltip("Motor de profundidade legado (MiDaS, 256×256). Usado quando useDepthAnythingV2 = false.")]
         public MidasInferenceManager midasAI;
 
-        [Tooltip("Motor de profundidade de produção (Depth Anything V2, 518×518). Priorizado quando useDepthAnythingV2 = true.")]
+        [Tooltip(
+            "Motor de profundidade de produção (Depth Anything V2, 518×518). Priorizado quando useDepthAnythingV2 = true.")]
         public DepthAIManager depthAI;
 
         [Tooltip(
@@ -34,14 +41,13 @@ namespace LuckArkman.XR.Main
         )]
         public bool useDepthAnythingV2 = true;
 
-        public Decision decisionMatrix;       
-        
+        public Decision decisionMatrix;
+
         public HeatmapManager heatmapManager;
         public HudController hudController;
         public BatteryOptimizer batteryOptimizer;
-        
-        [Header("Módulo de Saída")]
-        public Guia sistemaGuia;
+
+        [Header("Módulo de Saída")] public Guia sistemaGuia;
 
         [Tooltip("Gerenciador de progresso do roteiro e evasão de obstáculos.")]
         public RouteProgressManager routeProgress;
@@ -134,7 +140,7 @@ namespace LuckArkman.XR.Main
                 // ==============================================================
                 // O ESCALONADOR DE 14 FRAMES (DIVISÃO DE CARGA NA GPU)
                 // ==============================================================
-                
+
                 // (3 MiDaS) -> (3 YOLO) -> (3 MiDaS) -> (3 YOLO) -> (1 MiDaS) -> (1 YOLO)
                 if (contadorFrames < 3 || (contadorFrames >= 6 && contadorFrames < 9) || contadorFrames == 12)
                 {
@@ -154,7 +160,7 @@ namespace LuckArkman.XR.Main
                     if (raycastScanner != null)
                         raycastScanner.Scan(ultimoMidasData);
                 }
-                else 
+                else
                 {
                     // TURNO DO YOLO: Roda a semântica e confia na memória física do MiDaS
                     ultimoYoloData = GetDetectionsFromAI();
@@ -206,12 +212,14 @@ namespace LuckArkman.XR.Main
                         string descricaoAmbiente;
                         if (raycastScanner != null)
                         {
-                            descricaoAmbiente = $"Frente: {raycastScanner.FrontDistanceMeters:F1}m ({raycastScanner.FrontDistanceSteps}p) | " +
-                                               $"Esq: {raycastScanner.LeftDistanceMeters:F1}m | Dir: {raycastScanner.RightDistanceMeters:F1}m.";
+                            descricaoAmbiente =
+                                $"Frente: {raycastScanner.FrontDistanceMeters:F1}m ({raycastScanner.FrontDistanceSteps}p) | " +
+                                $"Esq: {raycastScanner.LeftDistanceMeters:F1}m | Dir: {raycastScanner.RightDistanceMeters:F1}m.";
                         }
                         else
                         {
-                            descricaoAmbiente = $"Frente: {ultimoMidasData.dangerScore:F1}/10 | Esq: {ultimoMidasData.leftZoneDanger:F1}/10 | Dir: {ultimoMidasData.rightZoneDanger:F1}/10.";
+                            descricaoAmbiente =
+                                $"Frente: {ultimoMidasData.dangerScore:F1}/10 | Esq: {ultimoMidasData.leftZoneDanger:F1}/10 | Dir: {ultimoMidasData.rightZoneDanger:F1}/10.";
                         }
 
                         if (ultimoYoloData != null && ultimoYoloData.Count > 0)
@@ -224,51 +232,57 @@ namespace LuckArkman.XR.Main
                             ? raycastScanner.FrontDistanceSteps
                             : Mathf.Max(1, 8 - Mathf.RoundToInt(ultimoMidasData.dangerScore));
 
-                        Debug.Log($"[Main - CONSENSO ATINGIDO] Analisados 14 frames. Placar: {placar}. Comando Final Enviado ao Guia: {pacoteFinal.comando}. Motivo semântico: {pacoteFinal.motivoSemantico}.");
+                        Debug.Log(
+                            $"[Main - CONSENSO ATINGIDO] Analisados 14 frames. Placar: {placar}. Comando Final Enviado ao Guia: {pacoteFinal.comando}. Motivo semântico: {pacoteFinal.motivoSemantico}.");
 
-                        bool isManobraEvasiva = 
-                            pacoteFinal.comando != Guia.EstadoInstrucao.Frente1 && 
-                            pacoteFinal.comando != Guia.EstadoInstrucao.Frente2 && 
-                            pacoteFinal.comando != Guia.EstadoInstrucao.Frente3 && 
-                            pacoteFinal.comando != Guia.EstadoInstrucao.Frente4 && 
-                            pacoteFinal.comando != Guia.EstadoInstrucao.Nenhum;
+                        bool isFrente = pacoteFinal.comando.ToString().StartsWith("Frente") ||
+                                        pacoteFinal.comando == Guia.EstadoInstrucao.Nenhum;
 
-                        // OTIMIZAÇÃO E REDUÇÃO DE RUÍDO:
-                        // YOLO/MiDaS atuam EXCLUSIVAMENTE na identificação de perigos.
-                        // A navegação normal de fluxo é governada pelos Checkpoints no Guia.
-                        if (isManobraEvasiva)
+// Um Giro no próprio eixo para alinhar com o Checkpoint. Não exige passos.
+                        bool isGiro = pacoteFinal.comando == Guia.EstadoInstrucao.GirarDireita ||
+                                      pacoteFinal.comando == Guia.EstadoInstrucao.GirarEsquerda;
+
+// Um Desvio lateral por causa de um obstáculo.
+                        bool isDesvio = pacoteFinal.comando == Guia.EstadoInstrucao.DesviarDireita ||
+                                        pacoteFinal.comando == Guia.EstadoInstrucao.DesviarEsquerda ||
+                                        pacoteFinal.comando == Guia.EstadoInstrucao.DesviarDuploDireita ||
+                                        pacoteFinal.comando == Guia.EstadoInstrucao.DesviarDuploEsquerda;
+
+                        if (!isFrente)
                         {
-                            // FILTRO DE MOVIMENTO (OdometryTracker):
-                            // Só re-emite o comando se o usuário já se moveu desde o último comando.
-                            // Se parado + mesmo comando = silencia para não repetir em loop.
+                            // Se for GIRO (para alinhar com a rota), NUNCA suprime. O utilizador precisa saber para onde virar estando parado.
+                            // Se for DESVIO evasivo, suprime apenas se ele não tiver caminhado (evita spam de áudio).
                             bool usuarioMoveu = odometryTracker == null || odometryTracker.UsuarioObedeceuComando();
+                            bool deveEmitirComando = isGiro || usuarioMoveu;
 
-                            if (usuarioMoveu && !sistemaGuia.EstaTocandoAudioDeSistema)
+                            if (deveEmitirComando && !sistemaGuia.EstaTocandoAudioDeSistema)
                             {
-                                sistemaGuia.ExecutarComando(pacoteFinal.comando, passosCalculados, descricaoAmbiente, pacoteFinal.motivoSemantico);
+                                sistemaGuia.ExecutarComando(pacoteFinal.comando, passosCalculados, descricaoAmbiente,
+                                    pacoteFinal.motivoSemantico);
 
-                                // Notifica o pedômetro que um comando foi emitido
-                                // (zera o contador de passos pós-comando)
-                                odometryTracker?.NotificarComandoEmitido();
+                                // Notifica apenas se for um desvio que exigia passos.
+                                if (isDesvio) odometryTracker?.NotificarComandoEmitido();
 
-                                // Timeout de SEGURANÇA: fallback quando não há OdometryTracker.
-                                // Com o pedômetro, OnPassoUsuario() libera antes do timeout.
                                 tempoDescansoManobra = Time.time + TIMEOUT_MANOBRA_FIXO;
                             }
-                            else if (!usuarioMoveu)
+                            else if (!deveEmitirComando)
                             {
-                                Debug.Log($"[Orchestrator] 🧍 Comando {pacoteFinal.comando} suprimido: " +
-                                          $"usuário ainda não caminhou ({odometryTracker.PassosDesdeUltimoComando}/{odometryTracker.passosParaDesbloquear}p).");
+                                // DEADLOCK RESOLVIDO: Em vez de ficar em silêncio, se o utilizador está bloqueado a aguardar que o sistema o deixe avançar, 
+                                // emitimos um "Frente1" (passo cauteloso) para forçá-lo a sair da inércia com segurança.
+                                Debug.Log(
+                                    $"[Orchestrator] 🧍 Comando {pacoteFinal.comando} suprimido (sem passos). Injetando Frente1 para quebra de inércia.");
+                                sistemaGuia.ExecutarComando(Guia.EstadoInstrucao.Frente1, 1, "Avance um pequeno passo",
+                                    "");
+                                tempoDescansoManobra = Time.time + 2.0f; // Pausa menor
                             }
                         }
 
                         decisionMatrix.LimparBuffer();
-
                     }
                 }
             }
-            
-            ProcessSystemSafety(); 
+
+            ProcessSystemSafety();
         }
 
         private List<DetectionResult> GetDetectionsFromAI()
@@ -277,11 +291,14 @@ namespace LuckArkman.XR.Main
             {
                 List<DetectionResult> deteccoes = yoloAI.ExecuteInference(mjpegClient.streamTexture);
                 // Ordena por tamanho (os maiores perigos primeiro)
-                if (deteccoes != null) {
+                if (deteccoes != null)
+                {
                     deteccoes.Sort((a, b) => (b.box.width * b.box.height).CompareTo(a.box.width * a.box.height));
                 }
+
                 return deteccoes;
             }
+
             return new List<DetectionResult>();
         }
 
@@ -299,13 +316,13 @@ namespace LuckArkman.XR.Main
         public void OnConnectionEstablished()
         {
             SetState(SystemState.Active);
-            
+
             // NOVO: Desliga apenas visualmente o HUD assim que conecta!
             if (hudController != null)
             {
                 hudController.SetVisibility(false);
             }
-            
+
             if (sistemaGuia != null)
             {
                 sistemaGuia.IniciarSequenciaDeAudioDeSistema();
@@ -315,13 +332,13 @@ namespace LuckArkman.XR.Main
         public void OnConnectionLost()
         {
             SetState(SystemState.Searching);
-            
+
             // NOVO: Religa visualmente o HUD se a conexão cair
             if (hudController != null)
             {
                 hudController.SetVisibility(true);
             }
-            
+
             if (discoveryManager != null) discoveryManager.StartDiscovery();
         }
     }
