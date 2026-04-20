@@ -8,13 +8,17 @@ public class MobileDebugPanel : MonoBehaviour
     private Vector2 scrollPosition;
     public bool mostrarPainel = true;
 
+    [Header("Configurações Visuais")]
+    [Tooltip("Tamanho da fonte para telas de alta resolução (Mobile)")]
+    public int tamanhoFonte = 28; 
+
     // Referências do seu sistema (Arraste no Inspector)
     public LuckArkman.XR.Main.Guia guia;
 
     // Variáveis de Redimensionamento
     private float alturaPainel;
     private bool isDragging = false;
-    private float alturaBarraDrag = 50f; // Tamanho ideal para o dedo tocar
+    private float alturaBarraDrag = 60f; // Aumentei levemente para facilitar o toque
 
     void Start()
     {
@@ -46,6 +50,14 @@ public class MobileDebugPanel : MonoBehaviour
     void OnGUI()
     {
         if (!mostrarPainel) return;
+
+        // ==========================================
+        // FORÇANDO O TAMANHO DA FONTE PARA MOBILE
+        // ==========================================
+        GUI.skin.label.fontSize = tamanhoFonte;
+        GUI.skin.box.fontSize = tamanhoFonte;
+        GUI.skin.button.fontSize = tamanhoFonte;
+        GUI.skin.label.richText = true; // Garante que o texto colorido funcione
 
         // O Y do painel é o fundo da tela menos a altura atual dele
         Rect areaPainel = new Rect(0, Screen.height - alturaPainel, Screen.width, alturaPainel);
@@ -86,14 +98,14 @@ public class MobileDebugPanel : MonoBehaviour
         GUI.Box(areaPainel, ""); 
         
         // Barra superior de puxar (Drag Handle)
-        GUI.Box(areaDrag, "================ PUXE AQUI PARA REDIMENSIONAR ================");
+        GUI.Box(areaDrag, "==== PUXE AQUI PARA REDIMENSIONAR ====");
 
         // Cria uma área interna isolada abaixo da barra de drag para o conteúdo não vazar
         GUILayout.BeginArea(new Rect(10, Screen.height - alturaPainel + alturaBarraDrag, Screen.width - 20, alturaPainel - alturaBarraDrag - 10));
         
         // 1. WATCHER DE ESTADO (O X-9 do bug)
         string statusTTS = guia != null ? $"TTS Ocupado: {guia.EstaTocandoAudioDeSistema}" : "Guia: NULL";
-        GUILayout.Label($"<b><size=14>STATUS DO SISTEMA:</size></b> {statusTTS}");
+        GUILayout.Label($"<b>STATUS DO SISTEMA:</b> {statusTTS}");
 
         // 2. CONSOLE DE LOGS
         scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.ExpandHeight(true));
@@ -102,7 +114,8 @@ public class MobileDebugPanel : MonoBehaviour
         GUILayout.EndScrollView();
 
         // 3. BOTÃO DE LIMPEZA
-        if (GUILayout.Button("Limpar Console", GUILayout.Height(50)))
+        // Aumentando a altura do botão proporcionalmente à fonte para ficar fácil de clicar
+        if (GUILayout.Button("Limpar Console", GUILayout.Height(tamanhoFonte * 3)))
         {
             logBuilder.Clear();
         }

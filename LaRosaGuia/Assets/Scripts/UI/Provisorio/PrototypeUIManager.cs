@@ -170,6 +170,15 @@ namespace LuckArkman.XR.UI
             if (NavigationManager.Instance != null)
                 NavigationManager.Instance.IniciarRota(rotaAtiva);
 
+            // Sincroniza com o Sistema de Voz do Guia (Checkpoints)
+            var progressManager = Object.FindFirstObjectByType<LuckArkman.XR.Main.RouteProgressManager>();
+            if (progressManager != null)
+            {
+                // Configura o total de checkpoints para bater com os pontos de GPS (mais a largada)
+                progressManager.totalCheckPoints = rotaAtiva.nos.Count + 1;
+                progressManager.ResetarRoteiro(); // Isso também reproduz o CP0 inicial
+            }
+
             ShowPanel(panelNavigation);
         }
 

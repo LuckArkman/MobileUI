@@ -3,7 +3,6 @@ using UnityEngine.UIElements;
 using LuckArkman.XR.Networking;
 using System.Linq;
 
-
 namespace LuckArkman.XR.UI
 {
     public class HudController : MonoBehaviour
@@ -21,7 +20,6 @@ namespace LuckArkman.XR.UI
         [SerializeField] private LuckArkman.XR.Safety.RiskCalculator riskCalculator;
         [SerializeField] private LuckArkman.XR.Safety.HeatmapManager heatmapManager;
         [SerializeField] private LuckArkman.XR.AR.ARCheckpointPlacer checkpointPlacer;
-
 
         private Label latencyLabel;
         private Label bitrateLabel;
@@ -124,7 +122,8 @@ namespace LuckArkman.XR.UI
                     }
                 }
             }
-            catch (System.Exception e)
+            // CORREÇÃO: Aplicação do global:: para evitar o conflito de namespace
+            catch (global::System.Exception e)
             {
                 Debug.LogError($"[Hotspot] Falha geral ao invocar a tela de tethering: {e.Message}");
             }

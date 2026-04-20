@@ -12,7 +12,8 @@ namespace LuckArkman.XR.Navigation
         public static NavigationManager Instance { get; private set; }
 
         [Header("Configurações do ESP32")]
-        public string esp32IpAddress = "192.168.17.102";
+        // IP Atualizado conforme solicitado
+        public string esp32IpAddress = "192.168.43.50";
         public int portaControle = 81;
 
         [Header("Interface (UI)")]
@@ -20,7 +21,7 @@ namespace LuckArkman.XR.Navigation
         public PrototypeUIManager uiManager; 
 
         [Header("Parâmetros de Navegação")]
-        public float raioDeCapturaBase = 4.0f; // <-- Modificado para base
+        public float raioDeCapturaBase = 4.0f; 
         private float servoUpdateInterval = 0.5f; 
 
         [Header("Comunicação com IA (Decision)")]
@@ -62,7 +63,6 @@ namespace LuckArkman.XR.Navigation
         /// <summary>Distância em metros até o ponto GPS atual. Consumido por RouteProgressTracker.</summary>
         [HideInInspector] public float distanciaAoDestino = 0f;
 
-
         void Update()
         {
             if (!isNavigating || !GPSManager.Instance.gpsAtivo || rotaAtiva == null) return;
@@ -71,15 +71,13 @@ namespace LuckArkman.XR.Navigation
             float lonAtual = GPSManager.Instance.longitude;
             float headingAtual = GPSManager.Instance.currentHeading;
 
-            // OTIMIZAÇÃO: Se o usuário estiver andando rápido, o raio de captura aumenta para não perder a migalha
             float velocidadeEstimada = Input.compass.enabled ? Input.compass.headingAccuracy : 0; 
             float raioDeCaptura = raioDeCapturaBase + (velocidadeEstimada * 0.1f);
 
             // 1. CHECAGEM DE PROGRESSO
             RouteNode alvoAtual = rotaAtiva.nos[indicePontoAtual];
             float distanciaAteAtual = CalculateDistance(latAtual, lonAtual, (float)alvoAtual.latitude, (float)alvoAtual.longitude);
-            distanciaAoDestino = distanciaAteAtual; // expõe para RouteProgressTracker
-
+            distanciaAoDestino = distanciaAteAtual; 
 
             // 2. AVANÇO ORGÂNICO
             if (distanciaAteAtual <= raioDeCaptura)
@@ -96,7 +94,6 @@ namespace LuckArkman.XR.Navigation
                 RouteNode proximoAlvo = rotaAtiva.nos[indicePontoAtual + 1];
                 float anguloProximo = CalculateBearing(latAtual, lonAtual, (float)proximoAlvo.latitude, (float)proximoAlvo.longitude);
                 
-                // OTIMIZAÇÃO: LerpAngle mais seguro, usando a função nativa da Unity para rotações
                 float fatorMescla = Mathf.Clamp01(1f - (distanciaAteAtual / (raioDeCaptura * 2f)));
                 anguloDestino = Mathf.LerpAngle(anguloDestino, anguloProximo, fatorMescla);
             }
@@ -137,6 +134,12 @@ namespace LuckArkman.XR.Navigation
             
             indicePontoAtual++;
 
+            var progressManager = Object.FindFirstObjectByType<LuckArkman.XR.Main.RouteProgressManager>();
+            if (progressManager != null)
+            {
+                progressManager.AvancarParaProximoCheckPoint();
+            }
+
             if (indicePontoAtual >= rotaAtiva.nos.Count)
             {
                 Debug.Log("[Navigation] Destino Final Alcançado!");
@@ -154,6 +157,16 @@ namespace LuckArkman.XR.Navigation
         public void ResetarServoManual()
         {
             StartCoroutine(SendServoCommand(90));
+        }
+
+        // ==========================================================
+        // NOVO: Função para sortear e girar o servo aleatoriamente
+        // ==========================================================
+        public void GirarServoAleatorio()
+        {
+            int anguloAleatorio = UnityEngine.Random.Range(0, 181);
+            Debug.Log($"[Navigation] Girando servo aleatoriamente para: {anguloAleatorio}°");
+            StartCoroutine(SendServoCommand(anguloAleatorio));
         }
 
         // --- FÓRMULAS MATEMÁTICAS ---

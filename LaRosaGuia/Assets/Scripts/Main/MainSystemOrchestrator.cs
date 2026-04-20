@@ -66,6 +66,7 @@ namespace LuckArkman.XR.Main
         private int contadorFrames = 0;
         private MidasResult ultimoMidasData = new MidasResult();
         private List<DetectionResult> ultimoYoloData = new List<DetectionResult>();
+        private Guia.EstadoInstrucao ultimoComandoEvasivo = Guia.EstadoInstrucao.Nenhum;
 
         private void OnEnable()
         {
@@ -176,6 +177,16 @@ namespace LuckArkman.XR.Main
                 {
                     Debug.LogWarning($"[Orchestrator] 🚨 PERIGO IMEDIATO detectado pelo RaycastScanner " +
                                      $"({raycastScanner.FrontDistanceMeters:F2}m). Forçando PARAR.");
+                    ultimoComandoEvasivo = Guia.EstadoInstrucao.Parar;
+                    
+                    // ==============================================================
+                    // NOVO: Adiciona a chamada do servo giratório antes de parar
+                    // ==============================================================
+                    if (NavigationManager.Instance != null)
+                    {
+                        NavigationManager.Instance.GirarServoAleatorio();
+                    }
+
                     sistemaGuia.ExecutarComando(Guia.EstadoInstrucao.Parar, 1, "Obstáculo imediato", "");
                     tempoDescansoManobra = Time.time + 2.0f;
                     return;
@@ -242,9 +253,11 @@ namespace LuckArkman.XR.Main
                             // Só re-emite o comando se o usuário já se moveu desde o último comando.
                             // Se parado + mesmo comando = silencia para não repetir em loop.
                             bool usuarioMoveu = odometryTracker == null || odometryTracker.UsuarioObedeceuComando();
+                            bool isMesmoComando = (pacoteFinal.comando == ultimoComandoEvasivo);
 
-                            if (usuarioMoveu && !sistemaGuia.EstaTocandoAudioDeSistema)
+                            if ((usuarioMoveu || !isMesmoComando) && !sistemaGuia.EstaTocandoAudioDeSistema)
                             {
+                                ultimoComandoEvasivo = pacoteFinal.comando;
                                 sistemaGuia.ExecutarComando(pacoteFinal.comando, passosCalculados, descricaoAmbiente, pacoteFinal.motivoSemantico);
 
                                 // Notifica o pedômetro que um comando foi emitido
@@ -255,7 +268,7 @@ namespace LuckArkman.XR.Main
                                 // Com o pedômetro, OnPassoUsuario() libera antes do timeout.
                                 tempoDescansoManobra = Time.time + TIMEOUT_MANOBRA_FIXO;
                             }
-                            else if (!usuarioMoveu)
+                            else if (!usuarioMoveu && isMesmoComando)
                             {
                                 Debug.Log($"[Orchestrator] 🧍 Comando {pacoteFinal.comando} suprimido: " +
                                           $"usuário ainda não caminhou ({odometryTracker.PassosDesdeUltimoComando}/{odometryTracker.passosParaDesbloquear}p).");

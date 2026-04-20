@@ -73,6 +73,9 @@ namespace LuckArkman.XR.Main
         )]
         public bool evasaoAtivaNaModoApresentacao = true;
 
+        [Tooltip("Segundos antes de repetir 'Siga em frente' quando o caminho está livre.")]
+        public float intervaloFeedbackProativo = 15.0f;
+
         // ====================================================================
         // SECÇÃO 4 — ESTADO INTERNO
         // ====================================================================
@@ -85,6 +88,7 @@ namespace LuckArkman.XR.Main
         private int  _framesComObstaculo   = 0;
         private bool _evasaoEmCurso        = false;
         private Coroutine _corotinaEvasao  = null;
+        private float _tempoUltimaInstrucaoProativa = 0f;
 
         // ── Dados MiDaS mais recentes (atualizados a cada frame pelo Orchestrator) ──
         private MidasResult _ultimoMidas;
@@ -109,7 +113,7 @@ namespace LuckArkman.XR.Main
         private void Awake()
         {
             if (guia == null)
-                guia = FindObjectOfType<Guia>();
+                guia = FindFirstObjectByType<Guia>();
 
             CarregarProgresso();
         }
@@ -298,6 +302,19 @@ namespace LuckArkman.XR.Main
             {
                 // Decrementa gradualmente para evitar reset instantâneo
                 if (_framesComObstaculo > 0) _framesComObstaculo--;
+
+                // Feedback proativo (Siga em frente / Caminho livre)
+                if (Time.time - _tempoUltimaInstrucaoProativa > intervaloFeedbackProativo)
+                {
+                    _tempoUltimaInstrucaoProativa = Time.time;
+                    Guia.EstadoInstrucao frenteSegura =
+                        midas.dangerScore < 2f ? Guia.EstadoInstrucao.Frente4 :
+                        midas.dangerScore < 4f ? Guia.EstadoInstrucao.Frente3 :
+                                                 Guia.EstadoInstrucao.Frente2;
+
+                    Debug.Log($"[RouteProgress] 🟢 Feedback Proativo: {frenteSegura} (Score: {midas.dangerScore:F1})");
+                    guia.ExecutarComando(frenteSegura);
+                }
             }
         }
 
@@ -331,7 +348,11 @@ namespace LuckArkman.XR.Main
             guia.ExecutarComando(comandoEvasao);
 
             // Aguarda o áudio do comando de evasão
-            yield return new WaitForSeconds(2.5f);
+            float t2 = Time.time;
+            yield return new WaitUntil(() =>
+                Time.time - t2 > 5f ||
+                (guia.spatialAudio != null && !guia.spatialAudio.EstaReproduziindo)
+            );
 
             // ── Passo 3: Aguardar o caminho libertar ─────────────────────────
             Debug.Log("[RouteProgress] 🚧 Evasão — Passo 3: Aguardando caminho livre...");
@@ -350,7 +371,7 @@ namespace LuckArkman.XR.Main
 
                 // Re-emite comando de evasão se o obstáculo persistir
                 // (útil quando o utilizador não se moveu o suficiente)
-                if (Time.time - inicioEspera > 3f && !guia.spatialAudio.EstaReproduziindo)
+                if (Time.time - inicioEspera > 3f && (guia.spatialAudio == null || !guia.spatialAudio.EstaReproduziindo))
                 {
                     Debug.Log("[RouteProgress] 🚧 Evasão — Re-emitindo comando de evasão...");
                     guia.ExecutarComando(comandoEvasao);
