@@ -382,36 +382,28 @@ namespace LuckArkman.XR.Main
         }
 
         /// <summary>
-        /// Escolhe o melhor lado para desviar com base nas zonas laterais do MiDaS.
-        /// Considera evasão dupla quando ambos os lados estão relativamente livres
-        /// mas o frente está muito bloqueado (dangerScore > 8).
+        /// Quando este método é chamado, o sistema já confirmou que o caminho frontal 
+        /// está totalmente bloqueado por uma parede ou obstáculo extremo.
+        /// Portanto, instruímos o utilizador a GIRAR para encontrar uma saída segura.
         /// </summary>
         private Guia.EstadoInstrucao DeterminarDirecaoEvasao(MidasResult midas)
         {
             bool esqLivre = midas.leftZoneDanger  < limiarObstaculo - 0.5f;
             bool dirLivre = midas.rightZoneDanger < limiarObstaculo - 0.5f;
-            bool obstaculoExtremo = midas.dangerScore > 8.0f;
 
-            // Evasão dupla — obstáculo extremo com um lado completamente livre
-            if (obstaculoExtremo)
-            {
-                if (esqLivre && !dirLivre) return Guia.EstadoInstrucao.DesviarDuploEsquerda;
-                if (dirLivre && !esqLivre) return Guia.EstadoInstrucao.DesviarDuploDireita;
-            }
-
-            // Evasão simples — escolhe o lado mais livre
             if (esqLivre && dirLivre)
             {
-                // Ambos livres: escolhe o mais livre
+                // Ambos livres: escolhe o lado MAIS livre para GIRAR
                 return midas.leftZoneDanger <= midas.rightZoneDanger
-                    ? Guia.EstadoInstrucao.DesviarEsquerda
-                    : Guia.EstadoInstrucao.DesviarDireita;
+                    ? Guia.EstadoInstrucao.GirarEsquerda
+                    : Guia.EstadoInstrucao.GirarDireita;
             }
 
-            if (esqLivre)  return Guia.EstadoInstrucao.DesviarEsquerda;
-            if (dirLivre)  return Guia.EstadoInstrucao.DesviarDireita;
+            if (esqLivre)  return Guia.EstadoInstrucao.GirarEsquerda;
+            if (dirLivre)  return Guia.EstadoInstrucao.GirarDireita;
 
-            // Ambos os lados bloqueados — gira para o menos bloqueado
+            // Se, tragicamente, a frente, esquerda e direita estiverem todas bloqueadas,
+            // manda girar para o lado com "menor" pontuação de perigo, esperando achar a saída.
             return midas.leftZoneDanger <= midas.rightZoneDanger
                 ? Guia.EstadoInstrucao.GirarEsquerda
                 : Guia.EstadoInstrucao.GirarDireita;

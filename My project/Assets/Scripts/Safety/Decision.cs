@@ -333,41 +333,73 @@ namespace LuckArkman.XR.Safety
         {
             bool rightBlocked = midasData.rightZoneDanger > rightBlockThreshold;
             bool leftBlocked = midasData.leftZoneDanger > leftBlockThreshold;
+            
+            // Se o score frontal for maior que 7.0 (aprox. < 1 metro), consideramos como uma parede/bloqueio total
+            bool frontBlocked = midasData.dangerScore > 7.0f; 
 
+            // =========================================================================
+            // NOVA LÓGICA MVP: Se a frente está bloqueada, o utilizador DEVE GIRAR (Turn)
+            // para o lado livre, em vez de apenas dar passos laterais (Desviar).
+            // =========================================================================
+            if (frontBlocked)
+            {
+                if (leftBlocked && !rightBlocked)
+                {
+                    scores[Guia.EstadoInstrucao.GirarDireita] += safetyBonus * 3.0f; // Bônus massivo
+                    if (string.IsNullOrEmpty(overrideReason)) overrideReason = "Parede à frente e Esq bloqueada → Girando para Direita";
+                    temPoliticaDeSeguranca = true;
+                }
+                else if (rightBlocked && !leftBlocked)
+                {
+                    scores[Guia.EstadoInstrucao.GirarEsquerda] += safetyBonus * 3.0f;
+                    if (string.IsNullOrEmpty(overrideReason)) overrideReason = "Parede à frente e Dir bloqueada → Girando para Esquerda";
+                    temPoliticaDeSeguranca = true;
+                }
+                else if (!leftBlocked && !rightBlocked)
+                {
+                    // Frente bloqueada, mas AMBOS os lados estão livres. Gira para o lado MAIS livre.
+                    if (midasData.leftZoneDanger < midasData.rightZoneDanger)
+                    {
+                        scores[Guia.EstadoInstrucao.GirarEsquerda] += safetyBonus * 3.0f;
+                        if (string.IsNullOrEmpty(overrideReason)) overrideReason = "Parede à frente → Girando para Esquerda (Lado mais limpo)";
+                    }
+                    else
+                    {
+                        scores[Guia.EstadoInstrucao.GirarDireita] += safetyBonus * 3.0f;
+                        if (string.IsNullOrEmpty(overrideReason)) overrideReason = "Parede à frente → Girando para Direita (Lado mais limpo)";
+                    }
+                    temPoliticaDeSeguranca = true;
+                }
+            }
+
+            // =========================================================================
+            // Continuação: Penalidades laterais normais para não raspar nas paredes
+            // =========================================================================
             if (rightBlocked)
             {
                 scores[Guia.EstadoInstrucao.GirarDireita] -= sideBlockPenalty;
                 scores[Guia.EstadoInstrucao.DesviarDireita] -= partialSidePenalty;
-                scores[Guia.EstadoInstrucao.DesviarEsquerda] += safetyBonus;
-                if (intencao == Guia.EstadoInstrucao.GirarDireita || intencao == Guia.EstadoInstrucao.DesviarDireita)
-                {
-                    overrideReason = $"Dir está bloqueada (MiDaS: {midasData.rightZoneDanger:F1})";
-                    temPoliticaDeSeguranca = true;
-                }
+                // Só recomenda "Desviar" se não houver bloqueio frontal
+                if (!frontBlocked) scores[Guia.EstadoInstrucao.DesviarEsquerda] += safetyBonus;
             }
 
             if (leftBlocked)
             {
                 scores[Guia.EstadoInstrucao.GirarEsquerda] -= sideBlockPenalty;
                 scores[Guia.EstadoInstrucao.DesviarEsquerda] -= partialSidePenalty;
-                scores[Guia.EstadoInstrucao.DesviarDireita] += safetyBonus;
-                if (intencao == Guia.EstadoInstrucao.GirarEsquerda || intencao == Guia.EstadoInstrucao.DesviarEsquerda)
-                {
-                    overrideReason = $"Esq está bloqueada (MiDaS: {midasData.leftZoneDanger:F1})";
-                    temPoliticaDeSeguranca = true;
-                }
+                if (!frontBlocked) scores[Guia.EstadoInstrucao.DesviarDireita] += safetyBonus;
             }
 
-            if (midasData.dangerScore > 7.0f) 
+            // Penalidade de perigo frontal
+            if (midasData.dangerScore > 5.0f)
             {
                 scores[Guia.EstadoInstrucao.Frente4] -= frontPenalty;
                 scores[Guia.EstadoInstrucao.Frente3] -= frontPenalty * 0.8f;
                 scores[Guia.EstadoInstrucao.Frente2] -= frontPenalty * 0.5f;
                 scores[Guia.EstadoInstrucao.Frente1] -= frontPenalty * 0.2f;
-    
-                if (intencao.ToString().StartsWith("Frente"))
+                if (intencao.ToString().StartsWith("Frente") && string.IsNullOrEmpty(overrideReason))
                 {
-                    overrideReason = $"Frente bloqueada (MiDaS: {midasData.dangerScore:F1})";
+                    overrideReason = $"Frente perigosa (MiDaS: {midasData.dangerScore:F1})";
                     temPoliticaDeSeguranca = true;
                 }
             }
@@ -378,11 +410,13 @@ namespace LuckArkman.XR.Safety
                 scores[Guia.EstadoInstrucao.Frente3] -= objectRoutePenalty * 0.7f;
                 scores[Guia.EstadoInstrucao.Frente2] -= objectRoutePenalty * 0.5f;
                 scores[Guia.EstadoInstrucao.Frente1] -= objectRoutePenalty * 0.2f;
+                
                 scores[Guia.EstadoInstrucao.DesviarEsquerda] += objectRouteSafetyBonus;
                 scores[Guia.EstadoInstrucao.DesviarDireita] += objectRouteSafetyBonus;
+                
                 if (intencao.ToString().StartsWith("Frente") && string.IsNullOrEmpty(overrideReason))
                 {
-                    overrideReason = $"obstáculo crítico na rota ({principalLabel})";
+                    overrideReason = $"Obstáculo crítico na rota ({principalLabel})";
                     temPoliticaDeSeguranca = true;
                 }
             }
